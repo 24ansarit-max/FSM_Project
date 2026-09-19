@@ -1,1 +1,72 @@
+I want you to generate Verilog RTL code for an elevator controller. Here are two examples of similarly structured FSM-based controllers to follow the same coding style and structure:
 
+Example 1 — Traffic Light Controller (Moore FSM style):
+module traffic_light (
+    input wire clk,
+    input wire rst_n,
+    input wire sensor,
+    output reg [1:0] light
+);
+    localparam RED = 2'b00, GREEN = 2'b01, YELLOW = 2'b10;
+    reg [1:0] state, next_state;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) state <= RED;
+        else state <= next_state;
+    end
+
+    always @(*) begin
+        case (state)
+            RED:    next_state = sensor ? GREEN : RED;
+            GREEN:  next_state = YELLOW;
+            YELLOW: next_state = RED;
+            default: next_state = RED;
+        endcase
+    end
+
+    always @(*) begin
+        case (state)
+            RED:    light = 2'b00;
+            GREEN:  light = 2'b01;
+            YELLOW: light = 2'b10;
+            default: light = 2'b00;
+        endcase
+    end
+endmodule
+
+Example 2 — Vending Machine FSM (with request queue-like counter logic):
+module vending_machine (
+    input wire clk,
+    input wire rst_n,
+    input wire coin_in,
+    output reg dispense
+);
+    localparam IDLE = 1'b0, DISPENSE = 1'b1;
+    reg state, next_state;
+    reg [1:0] coin_count;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            state <= IDLE;
+            coin_count <= 0;
+        end else begin
+            state <= next_state;
+            if (coin_in && state == IDLE) coin_count <= coin_count + 1;
+        end
+    end
+
+    always @(*) begin
+        next_state = (coin_count >= 2) ? DISPENSE : IDLE;
+        dispense = (state == DISPENSE);
+    end
+endmodule
+
+Now, using this same coding style (localparam state encoding, separate sequential and combinational always blocks, clear signal naming), generate a complete Verilog RTL module for an ELEVATOR CONTROLLER with:
+- States: IDLE, MOVING_UP, MOVING_DOWN, DOOR_OPEN, DOOR_CLOSED
+- Parameterizable number of floors (default 4)
+- A request register to hold pending floor calls
+- Direction decision logic (go to nearest pending request, continue in current direction until no more requests that way, then reverse)
+- Door open/close timers and obstacle detection
+- Proper current floor tracking and floor arrival detection
+
+Produce the full module with ports, internal registers, state transition logic, and output logic.
