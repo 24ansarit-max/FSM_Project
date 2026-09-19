@@ -1,1 +1,23 @@
+Write synthesizable Verilog RTL for a Microwave Oven Controller FSM.
 
+States: IDLE, DOOR_OPEN, DOOR_CLOSED, TIMER_SET, RUNNING, PAUSED, DONE
+
+Requirements:
+- Inputs: clk, reset, door_open (1 = door is open, 0 = closed), start_btn, pause_btn, timer_set_btn, timer_value [7:0] (seconds), timer_done (internal or external tick indicating countdown reached 0)
+- Outputs: magnetron_on (1 = microwave emitter active), buzzer (1 = done signal), display_time [7:0] (remaining time), state_led (optional, for debug)
+- CRITICAL SAFETY REQUIREMENT (interlock logic):
+  - magnetron_on must NEVER be asserted while door_open = 1, under any state or condition
+  - If door_open becomes 1 at any point during RUNNING or PAUSED, the machine must immediately stop the magnetron and transition to DOOR_OPEN state
+  - The machine can only move from DOOR_CLOSED to TIMER_SET to RUNNING; it cannot start RUNNING directly if the door has ever been detected open without re-closing
+- Behavior:
+  - IDLE: waiting, door state monitored
+  - DOOR_OPEN: door open detected, magnetron forced off, no operation allowed
+  - DOOR_CLOSED: door closed, ready to accept timer input
+  - TIMER_SET: user sets cook time via timer_set_btn/timer_value
+  - RUNNING: magnetron_on = 1 (only if door_open = 0), countdown active
+  - PAUSED: magnetron_on = 0, countdown halted, resumes on start_btn if door still closed
+  - DONE: countdown reached 0, magnetron_on = 0, buzzer = 1, return to IDLE after acknowledgment
+- Use behavioral Verilog (always block, case statement), synchronous active-high reset
+- Include comments explicitly explaining how the interlock safety logic is enforced in every state
+
+Output only the complete, synthesizable Verilog module code.
