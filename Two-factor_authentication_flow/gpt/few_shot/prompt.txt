@@ -1,1 +1,52 @@
+Here is an example of a simple FSM in Verilog with a retry-counter and lockout pattern (clean, security-conscious coding style):
 
+module simple_retry_fsm (
+    input clk,
+    input reset,
+    input attempt,      // pulse: user made an attempt
+    input correct,       // 1 if the attempt was correct
+    output reg locked,
+    output reg [1:0] fail_count
+);
+    localparam TRY = 1'b0, LOCK = 1'b1;
+    reg state;
+
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            state <= TRY;
+            fail_count <= 0;
+        end else begin
+            case (state)
+                TRY: begin
+                    if (attempt) begin
+                        if (correct) begin
+                            fail_count <= 0;
+                        end else if (fail_count == 2'd2) begin
+                            state <= LOCK;
+                        end else begin
+                            fail_count <= fail_count + 1;
+                        end
+                    end
+                end
+                LOCK: state <= LOCK;   // no recovery except reset
+                default: state <= TRY;
+            endcase
+        end
+    end
+
+    always @(*) begin
+        locked = (state == LOCK);
+    end
+endmodule
+
+Using the same coding style and retry/lockout pattern shown above (fail counter incremented on wrong attempt, forced lock state with no auto-recovery), write a Two-Factor Authentication Flow Controller FSM with these states:
+PASSWORD_ENTRY, PASSWORD_VERIFIED, OTP_SENT, OTP_VERIFY, ACCESS_GRANTED, LOCKED
+
+Requirements:
+- Password stage: up to 3 failed attempts allowed before LOCKED; correct password moves to PASSWORD_VERIFIED then OTP_SENT (request an OTP)
+- OTP stage: up to 3 failed attempts allowed before LOCKED; also enforce a timeout — if OTP is not submitted within a timeout window (use a timeout_tick input to count), treat it as a failed attempt
+- Correct OTP within retry/timeout limits -> ACCESS_GRANTED
+- LOCKED state: access_granted forced to 0, no recovery except external reset
+- Outputs: access_granted, locked_out, request_otp, fail_count
+
+Output the complete Verilog module code.
