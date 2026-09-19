@@ -1,1 +1,34 @@
+INSTRUCTIONS:
+- Module name: two_factor_auth_controller
+- Ports:
+  - input clk
+  - input reset (synchronous, active-high; only way to exit LOCKED)
+  - input password_submit          // pulse: user submitted a password attempt
+  - input password_valid           // 1 = password attempt was correct (valid same cycle as password_submit)
+  - input otp_submit               // pulse: user submitted an OTP attempt
+  - input otp_valid                // 1 = OTP attempt was correct (valid same cycle as otp_submit)
+  - input timeout_tick             // 1-cycle pulse per timeout interval (from external timer/prescaler)
+  - output reg access_granted
+  - output reg locked_out
+  - output reg request_otp         // pulse, asserted for 1 cycle when entering OTP_SENT
+  - output reg [1:0] pwd_fail_count
+  - output reg [1:0] otp_fail_count
+  - output reg [3:0] otp_timeout_counter   // counts timeout_tick pulses while waiting for OTP
+- States (localparam, binary encoding): PASSWORD_ENTRY, PASSWORD_VERIFIED, OTP_SENT, OTP_VERIFY, ACCESS_GRANTED, LOCKED
+- Parameters: MAX_PWD_RETRIES = 3, MAX_OTP_RETRIES = 3, OTP_TIMEOUT_LIMIT = 10 (timeout_tick counts before treating as failed attempt)
+- Transition rules:
+  - PASSWORD_ENTRY: on password_submit:
+     - if password_valid -> pwd_fail_count <= 0; go to PASSWORD_VERIFIED
+     - else -> pwd_fail_count <= pwd_fail_count + 1; if pwd_fail_count + 1 == MAX_PWD_RETRIES -> go to LOCKED; else stay in PASSWORD_ENTRY
+  - PASSWORD_VERIFIED: automatically go to OTP_SENT next cycle, assert request_otp pulse, reset otp_timeout_counter to 0
+  - OTP_SENT: go to OTP_VERIFY (waiting state), start counting timeout_tick via otp_timeout_counter
+  - OTP_VERIFY:
+     - on otp_submit: if otp_valid -> go to ACCESS_GRANTED; else -> otp_fail_count <= otp_fail_count + 1; if otp_fail_count + 1 == MAX_OTP_RETRIES -> go to LOCKED; else go back to OTP_SENT (request a new OTP, reset timeout counter)
+     - on timeout_tick (no otp_submit yet): increment otp_timeout_counter; if otp_timeout_counter == OTP_TIMEOUT_LIMIT -> treat as failed attempt (otp_fail_count <= otp_fail_count + 1), check same MAX_OTP_RETRIES condition as above
+  - ACCESS_GRANTED: access_granted = 1, hold until reset
+  - LOCKED: access_granted forced to 0, locked_out = 1, no transition out except reset (highest-priority check: reset must override everything, but nothing else can exit LOCKED)
+- No latches, no combinational feedback loops
+- Verilog-2001 syntax only, fully synthesizable
+- Add comments labeled "SECURITY:" at the retry-limit checks, the timeout check, and the lockout enforcement
 
+Output only the complete, synthesizable Verilog module.
