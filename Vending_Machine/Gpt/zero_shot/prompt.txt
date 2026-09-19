@@ -1,1 +1,22 @@
+Write synthesizable Verilog RTL for a Vending Machine Controller FSM.
 
+States: IDLE, COIN_INSERTED, ITEM_SELECTED, DISPENSING, CHANGE_RETURN, OUT_OF_STOCK/ERROR
+
+Requirements:
+- Inputs: clk, reset, coin_in (indicates a coin was inserted, or use a multi-bit coin_value if you prefer), item_select (item code, e.g., 2-bit for 4 items), item_price (per-item price, can be internal lookup), item_available (per-item stock flag, e.g., array of 4 bits)
+- Outputs: dispense (1-bit or item code), change_amount (amount to return), error (1-bit, active when out-of-stock or invalid selection), ready (1-bit, in IDLE)
+- Behavior:
+  - IDLE: waiting for coin insertion
+  - COIN_INSERTED: accumulate inserted coin value; wait for item selection
+  - ITEM_SELECTED: check item availability and if accumulated coins >= item price
+    - If item out of stock -> go to OUT_OF_STOCK/ERROR (do not deduct coins, allow refund)
+    - If insufficient coins -> stay in COIN_INSERTED (or a WAIT state) prompting more coins
+    - If enough coins and item available -> go to DISPENSING
+  - DISPENSING: dispense the item, compute change if any
+  - CHANGE_RETURN: return change (accumulated - price), then go back to IDLE
+  - OUT_OF_STOCK/ERROR: signal error, return any inserted coins, then go back to IDLE
+- Must correctly handle: insufficient coins (stay/wait, don't dispense), sold-out items (error + refund, no dispense)
+- Use behavioral Verilog (always block, case statement), synchronous active-high reset
+- Include comments explaining each state and transition
+
+Output only the complete, synthesizable Verilog module code.
