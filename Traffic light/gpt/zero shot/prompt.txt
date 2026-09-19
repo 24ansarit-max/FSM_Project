@@ -1,1 +1,13 @@
+Write synthesizable Verilog RTL for a simple Traffic Light Controller.
 
+Requirements:
+- States: RED, GREEN, YELLOW (cyclic order: RED -> GREEN -> YELLOW -> RED)
+- Optional: add a pedestrian signal (WALK/DON'T WALK) that turns WALK on during RED and DON'T WALK otherwise
+- Use a counter to time how long each state lasts (parameterizable durations)
+- Inputs: clk, reset
+- Outputs: red, yellow, green (1-bit each) and optionally walk, dont_walk
+- Use behavioral Verilog (always block with case statement for FSM)
+- Include synchronous active-high reset
+- Code should be clean, commented, and directly synthesizable
+
+Output only the complete Verilog module code.
