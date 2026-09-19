@@ -1,1 +1,19 @@
+Design a Microwave Oven Controller FSM in Verilog. Think through the design step by step before writing code, with special focus on safety.
 
+Step 1: List the states — IDLE, DOOR_OPEN, DOOR_CLOSED, TIMER_SET, RUNNING, PAUSED, DONE — and describe the purpose of each.
+
+Step 2: Identify the critical safety requirement: magnetron_on must never be active while the door is open. Describe TWO independent mechanisms to enforce this:
+   a) State-level: any state transitions immediately to DOOR_OPEN if door_open becomes 1
+   b) Output-level: the magnetron_on output signal is additionally AND-gated with (door_open == 0), so even if the state logic has a bug or one-cycle delay, the output itself cannot assert with the door open
+
+Step 3: Define the normal transaction flow: IDLE -> DOOR_CLOSED (door closes) -> TIMER_SET (user sets time) -> RUNNING (start pressed) -> DONE (timer expires) -> IDLE. Describe what triggers each transition.
+
+Step 4: Define the PAUSED state behavior: reachable from RUNNING via pause_btn; magnetron_on forced off while paused; resuming to RUNNING only allowed if door_open = 0 at the time of resume.
+
+Step 5: Walk through the edge case explicitly: door opens WHILE RUNNING or WHILE PAUSED — describe the immediate response (magnetron cut instantly, state forced to DOOR_OPEN, timer countdown halted/preserved or reset — choose and justify one behavior).
+
+Step 6: Define next-state logic and output logic (magnetron_on, buzzer, display_time) incorporating both safety mechanisms from Step 2.
+
+Step 7: Write the complete, synthesizable Verilog module using behavioral style (state register + next-state combinational block + output block with the door_open override applied at both levels), synchronous active-high reset, with comments explicitly marking the two safety-enforcement points in the code.
+
+Provide your step-by-step reasoning first, then the final Verilog code.
