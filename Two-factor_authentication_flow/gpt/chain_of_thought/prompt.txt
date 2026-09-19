@@ -1,1 +1,19 @@
+Design a Two-Factor Authentication Flow Controller FSM in Verilog. Think through the design step by step before writing code, with special focus on security-critical logic.
 
+Step 1: List the states — PASSWORD_ENTRY, PASSWORD_VERIFIED, OTP_SENT, OTP_VERIFY, ACCESS_GRANTED, LOCKED — and describe the purpose of each.
+
+Step 2: Define the normal (happy-path) flow: PASSWORD_ENTRY (correct password) -> PASSWORD_VERIFIED -> OTP_SENT (system sends OTP) -> OTP_VERIFY (user submits OTP) -> ACCESS_GRANTED (correct OTP). Describe the trigger for each transition.
+
+Step 3: Define the retry-limit logic for password attempts: describe a fail counter that increments on each wrong password_submit, and specify the exact condition (3rd consecutive failure) that forces a transition to LOCKED instead of retrying.
+
+Step 4: Define the retry-limit logic for OTP attempts, structured the same way as Step 3, but using a separate (or shared, justify your choice) fail counter for OTP_VERIFY.
+
+Step 5: Define the timeout logic: describe how timeout_tick pulses are counted while in OTP_SENT/OTP_VERIFY, what happens if the timeout window elapses with no OTP submission (should count as a failed attempt against the OTP retry limit), and how the timeout counter resets when a new OTP is requested.
+
+Step 6: Define the LOCKED state behavior: access_granted must be forced to 0 unconditionally, and there must be no state transition out of LOCKED except via the reset input — describe how this is enforced in the next-state logic (should be the highest-priority/first-checked branch, or a state with no exit case).
+
+Step 7: Define the next-state logic and output logic (access_granted, locked_out, request_otp, fail_count) incorporating all of the above.
+
+Step 8: Write the complete, synthesizable Verilog module using behavioral style (state register + next-state combinational block + output block), synchronous active-high reset, with comments explicitly marking the retry-limit check, the timeout check, and the lockout enforcement point.
+
+Provide your step-by-step reasoning first, then the final Verilog code.
