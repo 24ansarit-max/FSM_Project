@@ -1,1 +1,34 @@
 
+INSTRUCTIONS:
+- Module name: vending_machine_controller
+- Ports:
+  - input clk
+  - input reset (synchronous, active-high)
+  - input coin_insert (pulse, 1 clock cycle high when a coin is inserted)
+  - input [7:0] coin_value (value of the inserted coin, in cents)
+  - input select_item (pulse, high when user makes a selection)
+  - input [1:0] item_code (selects 1 of 4 items)
+  - input [3:0] item_available (bit per item, 1 = in stock, 0 = sold out)
+  - output reg [1:0] dispense_item (item code being dispensed, valid only when dispense_valid = 1)
+  - output reg dispense_valid
+  - output reg [7:0] change_amount
+  - output reg error (1 = out-of-stock or invalid selection)
+  - output reg ready (1 = machine is in IDLE, accepting coins)
+- States (use localparam, binary encoding): IDLE, COIN_INSERTED, ITEM_SELECTED, DISPENSING, CHANGE_RETURN, ERROR
+- Internal register: accumulated coin total (reg [7:0] total_credit)
+- Internal lookup: item prices as parameters (e.g., PRICE_0, PRICE_1, PRICE_2, PRICE_3)
+- Transition rules:
+  - IDLE: on coin_insert, add coin_value to total_credit, go to COIN_INSERTED
+  - COIN_INSERTED: on select_item, go to ITEM_SELECTED; on further coin_insert, keep accumulating
+  - ITEM_SELECTED:
+     - if item_available[item_code] == 0 -> go to ERROR (do not deduct credit)
+     - else if total_credit < price(item_code) -> go back to COIN_INSERTED (insufficient funds, keep waiting, do not dispense)
+     - else -> go to DISPENSING
+  - DISPENSING: set dispense_valid = 1, dispense_item = item_code, compute change_amount = total_credit - price(item_code), go to CHANGE_RETURN
+  - CHANGE_RETURN: hold change_amount output for one cycle, reset total_credit to 0, go to IDLE
+  - ERROR: assert error = 1, set change_amount = total_credit (full refund), reset total_credit to 0, go to IDLE
+- No latches, no combinational feedback loops
+- Verilog-2001 syntax only, fully synthesizable
+- Add comments explaining transaction flow and edge-case handling (insufficient coins, sold-out items)
+
+Output only the complete, synthesizable Verilog module.
