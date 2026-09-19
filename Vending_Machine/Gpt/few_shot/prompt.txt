@@ -1,1 +1,44 @@
+Here is an example of a simple FSM in Verilog with clean coding conventions (synchronous reset, case-based transitions, explicit state parameters):
 
+module simple_fsm (
+    input clk,
+    input reset,
+    input trigger,
+    output reg busy
+);
+    localparam IDLE = 2'b00, ACTIVE = 2'b01, DONE = 2'b10;
+    reg [1:0] state, next_state;
+
+    always @(posedge clk or posedge reset) begin
+        if (reset)
+            state <= IDLE;
+        else
+            state <= next_state;
+    end
+
+    always @(*) begin
+        case (state)
+            IDLE:   next_state = trigger ? ACTIVE : IDLE;
+            ACTIVE: next_state = DONE;
+            DONE:   next_state = IDLE;
+            default: next_state = IDLE;
+        endcase
+    end
+
+    always @(*) begin
+        busy = (state == ACTIVE);
+    end
+endmodule
+
+Using the same coding style (separate state register / next-state / output logic blocks, localparam-based state encoding), write a Vending Machine Controller FSM with these states:
+IDLE, COIN_INSERTED, ITEM_SELECTED, DISPENSING, CHANGE_RETURN, OUT_OF_STOCK/ERROR
+
+Requirements:
+- Track accumulated coin value as inserted
+- Accept an item selection input and check against item price and per-item stock availability
+- Handle insufficient coins by staying in a waiting state until enough coins are inserted (no dispensing)
+- Handle sold-out items by transitioning to OUT_OF_STOCK/ERROR, refunding any inserted coins, and returning to IDLE without dispensing
+- On sufficient payment and available stock: dispense the item, compute and return change, then return to IDLE
+- Outputs: dispense, change_amount, error, ready
+
+Output the complete Verilog module code.
