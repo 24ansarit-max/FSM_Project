@@ -1,1 +1,18 @@
 
+Design a Vending Machine Controller FSM in Verilog. Think through the design step by step before writing code.
+
+Step 1: List the states — IDLE, COIN_INSERTED, ITEM_SELECTED, DISPENSING, CHANGE_RETURN, OUT_OF_STOCK/ERROR — and describe the purpose of each.
+
+Step 2: Define the inputs needed to drive transitions: coin insertion/value, item selection code, item price lookup, and per-item stock availability flags. Decide data widths (e.g., 2-bit item select for 4 items, coin value accumulator width).
+
+Step 3: Walk through the normal transaction flow: IDLE -> COIN_INSERTED -> ITEM_SELECTED -> DISPENSING -> CHANGE_RETURN -> IDLE. Describe what happens and what is compared/computed at each step (accumulated coins vs. item price).
+
+Step 4: Walk through the edge cases explicitly:
+   a) Insufficient coins: item selected but accumulated value < price -> what state to go to, and how the machine waits for more coins without losing already-inserted value.
+   b) Sold-out item: item selected but stock flag = 0 -> transition to OUT_OF_STOCK/ERROR, ensure inserted coins are refunded, then return to IDLE.
+
+Step 5: Define the next-state logic and output logic (dispense, change_amount, error, ready) based on Steps 1–4.
+
+Step 6: Write the complete, synthesizable Verilog module using behavioral style (state register + next-state combinational block + output block), synchronous active-high reset, with comments explaining each state and edge case.
+
+Provide your step-by-step reasoning first, then the final Verilog code.
