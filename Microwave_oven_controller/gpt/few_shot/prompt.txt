@@ -1,1 +1,42 @@
+Here is an example of a simple FSM in Verilog with clean, safety-conscious coding conventions (synchronous reset, case-based transitions, an explicit safety override check):
 
+module simple_safety_fsm (
+    input clk,
+    input reset,
+    input enable,
+    input fault,          // safety input - must override everything
+    output reg motor_on
+);
+    localparam OFF = 1'b0, ON = 1'b1;
+    reg state;
+
+    always @(posedge clk or posedge reset) begin
+        if (reset)
+            state <= OFF;
+        else if (fault)
+            state <= OFF;            // fault always forces OFF regardless of other logic
+        else begin
+            case (state)
+                OFF: state <= enable ? ON : OFF;
+                ON:  state <= enable ? ON : OFF;
+                default: state <= OFF;
+            endcase
+        end
+    end
+
+    always @(*) begin
+        motor_on = (state == ON) && !fault;   // output also gated by fault as a second safety layer
+    end
+endmodule
+
+Using the same safety-conscious style (state overridden by a critical input, output additionally gated by the same critical input as a second layer of protection), write a Microwave Oven Controller FSM with these states:
+IDLE, DOOR_OPEN, DOOR_CLOSED, TIMER_SET, RUNNING, PAUSED, DONE
+
+Requirements:
+- door_open is the critical safety input, equivalent to "fault" in the example — it must force the FSM to DOOR_OPEN state from ANY other state, and must also directly gate the magnetron_on output as a second safety layer (not just rely on state transition timing)
+- Normal flow: DOOR_CLOSED -> TIMER_SET -> RUNNING -> DONE -> IDLE
+- PAUSED state reachable from RUNNING (pause_btn) and resumable back to RUNNING only if door_open = 0
+- DONE state asserts buzzer and clears magnetron_on, then returns to IDLE
+- Outputs: magnetron_on, buzzer, display_time
+
+Output the complete Verilog module code.
