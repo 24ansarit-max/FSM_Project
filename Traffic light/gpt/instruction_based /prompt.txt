@@ -1,1 +1,21 @@
 
+INSTRUCTIONS:
+- Module name: traffic_light_controller
+- Ports:
+  - input clk
+  - input reset (synchronous, active-high)
+  - output reg red
+  - output reg yellow
+  - output reg green
+  - output reg walk       (optional pedestrian signal, 1 = walk allowed)
+  - output reg dont_walk  (optional pedestrian signal, 1 = don't walk)
+- States: RED, GREEN, YELLOW only (use localparam, binary encoding)
+- Transition order: RED -> GREEN -> YELLOW -> RED (cyclic)
+- Use an internal counter (reg) to hold each state for a fixed number of clock cycles; make durations configurable via parameters (e.g., RED_TIME, GREEN_TIME, YELLOW_TIME)
+- Pedestrian signal logic: walk = 1 and dont_walk = 0 only during RED state; otherwise walk = 0, dont_walk = 1
+- Use behavioral Verilog: one always block for state/counter updates, one always block (or same block) for output logic
+- No latches, no combinational loops
+- Use Verilog-2001 syntax only (no SystemVerilog)
+- Add comments explaining state transitions and counter logic
+
+Output only the complete, synthesizable Verilog module.
