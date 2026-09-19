@@ -1,1 +1,52 @@
+### SPECIFICATION
+Design: Microwave Oven Controller
+States: IDLE, DOOR_OPEN, DOOR_CLOSED, TIMER_SET, RUNNING, PAUSED, DONE
+Purpose: Test interlock safety logic — magnetron must never run with the door open
 
+### INTERFACE
+- input clk, reset
+- input door_open           (critical safety input)
+- input start_btn, pause_btn, timer_set_btn
+- input [7:0] timer_value_in
+- input tick_1s              (1 Hz countdown pulse)
+- output magnetron_on
+- output buzzer
+- output [7:0] display_time
+
+### SAFETY REQUIREMENT (highest priority — verify twice)
+1. Any state, if door_open = 1 -> force transition to DOOR_OPEN state (top-priority check in next-state logic)
+2. Independent of state, output logic: magnetron_on = (state == RUNNING) AND (door_open == 0) — door_open must directly gate the output, not rely solely on the state machine
+
+### BEHAVIOR TABLE
+| Current State | Condition | Next State | Action |
+|---|---|---|---|
+| ANY | door_open == 1 | DOOR_OPEN | force magnetron off immediately |
+| DOOR_OPEN | door_open == 0 | DOOR_CLOSED | door just closed |
+| IDLE | door_open == 0 | DOOR_CLOSED | — |
+| DOOR_CLOSED | timer_set_btn | TIMER_SET | load display_time from timer_value_in |
+| TIMER_SET | start_btn AND door_open==0 | RUNNING | begin cooking |
+| RUNNING | tick_1s | RUNNING | decrement display_time |
+| RUNNING | display_time == 0 | DONE | stop magnetron, assert buzzer |
+| RUNNING | pause_btn | PAUSED | halt countdown, magnetron off |
+| PAUSED | start_btn AND door_open==0 | RUNNING | resume cooking |
+| DONE | any ack / timeout | IDLE | clear buzzer, reset display |
+
+### EDGE CASES TO HANDLE EXPLICITLY
+1. Door opens mid-RUNNING: magnetron must cut off within the same or next clock cycle; state forced to DOOR_OPEN
+2. Door opens mid-PAUSED: state forced to DOOR_OPEN (already safe since magnetron is off, but state must still reflect reality)
+3. Attempting start_btn while door_open == 1: must be ignored (blocked by the state-level and output-level safety checks)
+
+### DESIGN RULES
+- Style: Behavioral Verilog (state register + next-state combinational logic + output logic, case statements)
+- Reset: synchronous, active-high, returns to IDLE, clears display_time and magnetron_on
+- No latches, no combinational feedback loops
+- Verilog-2001 syntax, fully synthesizable
+
+### DELIVERABLE
+Output one complete Verilog module named `microwave_oven_controller` implementing the above, with:
+1. Parameter/localparam definitions for all states
+2. State register and next-state logic (door_open override evaluated first/highest priority)
+3. Output logic block, with magnetron_on explicitly re-gated by door_open
+4. Inline comments labeled "SAFETY:" at every point the door interlock is enforced
+
+Output only the final Verilog code.
