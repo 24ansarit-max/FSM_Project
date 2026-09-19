@@ -1,1 +1,47 @@
 
+### SPECIFICATION
+Design: Vending Machine Controller
+States: IDLE, COIN_INSERTED, ITEM_SELECTED, DISPENSING, CHANGE_RETURN, OUT_OF_STOCK/ERROR
+Purpose: Test transaction logic and edge cases — insufficient coins, sold-out items
+
+### INTERFACE
+- input clk, reset
+- input coin_insert, coin_value [7:0]
+- input select_item, item_code [1:0]
+- input item_available [3:0]  (stock flags, 1 per item)
+- output dispense_valid, dispense_item [1:0]
+- output change_amount [7:0]
+- output error
+- output ready
+
+### BEHAVIOR TABLE
+| Current State | Condition | Next State | Action |
+|---|---|---|---|
+| IDLE | coin_insert | COIN_INSERTED | add coin_value to credit |
+| COIN_INSERTED | select_item | ITEM_SELECTED | latch item_code |
+| COIN_INSERTED | coin_insert | COIN_INSERTED | keep accumulating credit |
+| ITEM_SELECTED | item not available | OUT_OF_STOCK/ERROR | flag error, prep refund |
+| ITEM_SELECTED | credit < price | COIN_INSERTED | insufficient funds, wait for more coins |
+| ITEM_SELECTED | credit >= price and available | DISPENSING | proceed to dispense |
+| DISPENSING | — | CHANGE_RETURN | dispense item, compute change |
+| CHANGE_RETURN | — | IDLE | output change, clear credit |
+| OUT_OF_STOCK/ERROR | — | IDLE | refund full credit, clear error next cycle |
+
+### EDGE CASES TO HANDLE EXPLICITLY
+1. Insufficient coins: do not dispense; retain accumulated credit; return to a coin-accepting state
+2. Sold-out item: do not deduct credit; assert error; refund any inserted coins; do not dispense
+
+### DESIGN RULES
+- Style: Behavioral Verilog (state register + next-state logic + output logic, using case statements)
+- Reset: synchronous, active-high, clears credit and returns to IDLE
+- No latches, no combinational feedback loops
+- Verilog-2001 syntax, fully synthesizable
+
+### DELIVERABLE
+Output one complete Verilog module named `vending_machine_controller` implementing the above, with:
+1. Parameter/localparam definitions for states and item prices
+2. State register and next-state combinational logic
+3. Output logic (dispense_valid, dispense_item, change_amount, error, ready)
+4. Inline comments explaining each state, transition, and how each edge case (insufficient coins, sold-out) is handled
+
+Output only the final Verilog code.
