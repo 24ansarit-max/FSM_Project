@@ -1,1 +1,35 @@
+Here is an example of a simple 2-state FSM in Verilog, written in a clean behavioral style:
 
+module simple_fsm (
+    input clk,
+    input reset,
+    output reg state_out
+);
+    reg state;
+    parameter A = 1'b0, B = 1'b1;
+
+    always @(posedge clk or posedge reset) begin
+        if (reset)
+            state <= A;
+        else begin
+            case (state)
+                A: state <= B;
+                B: state <= A;
+                default: state <= A;
+            endcase
+        end
+    end
+
+    always @(*) begin
+        state_out = state;
+    end
+endmodule
+
+Using the same coding style and conventions shown above (parameterized states, case-statement transitions, separate output logic), write a Traffic Light Controller module with:
+- States: RED, GREEN, YELLOW (cyclic: RED -> GREEN -> YELLOW -> RED)
+- A counter to control how long each state is held
+- Outputs: red, yellow, green
+- Optional: add a pedestrian signal (walk = 1 during RED, 0 otherwise)
+- Synchronous reset
+
+Output the complete Verilog module code.
