@@ -1,1 +1,32 @@
+I need Verilog RTL code for a single-elevator, multi-floor controller. Before writing the code, think through the design step by step, then generate the final RTL.
 
+Step 1: Define the problem scope.
+- Number of floors (parameterize as NUM_FLOORS, default 4).
+- List all inputs (clock, reset, floor request buttons, current floor sensor, door obstacle sensor) and outputs (motor up/down signals, door open/close signals, current floor display).
+
+Step 2: Define the FSM states and reasoning for each transition.
+- IDLE: no motion, no pending requests.
+- MOVING_UP / MOVING_DOWN: motor active, moving toward the target floor.
+- DOOR_OPEN: elevator arrived, doors open, timer running.
+- DOOR_CLOSED: doors closing/closed, ready to move to next request.
+- Explain the conditions that trigger each transition (e.g., IDLE -> MOVING_UP when a request exists above current floor).
+
+Step 3: Design the request-handling logic.
+- Decide how pending requests will be stored (a bit-vector register, one bit per floor).
+- Decide the direction algorithm: continue moving in the same direction while there are pending requests in that direction (elevator SCAN algorithm); reverse direction only when no more requests remain ahead; go IDLE when the request register is empty.
+- Explain how a request bit is cleared once serviced.
+
+Step 4: Design the floor movement timing.
+- Use a counter to simulate time taken to travel one floor.
+- Explain how current_floor increments/decrements when the counter reaches its threshold.
+
+Step 5: Design the door timing and safety logic.
+- Explain the door-open hold timer.
+- Explain how a door_obstacle input interrupts closing and reopens the door.
+
+Step 6: Translate the above design into Verilog.
+- Use localparam for state encoding.
+- Use one always block for sequential state/counter updates and one for combinational next-state/output logic (or clearly justify if using a single-always Mealy/Moore style).
+- Add comments referencing back to Steps 2-5 explaining each code block.
+
+Now, after reasoning through Steps 1-6, output the complete, synthesizable Verilog RTL module implementing this design.
