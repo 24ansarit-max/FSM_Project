@@ -1,1 +1,59 @@
+### SPECIFICATION
+Design: Two-Factor Authentication (2FA) Flow Controller
+States: PASSWORD_ENTRY, PASSWORD_VERIFIED, OTP_SENT, OTP_VERIFY, ACCESS_GRANTED, LOCKED
+Purpose: Test security-critical logic — retry limits, timeout, and lockout with no auto-recovery
 
+### INTERFACE
+- input clk, reset
+- input password_submit, password_valid
+- input otp_submit, otp_valid
+- input timeout_tick
+- output access_granted, locked_out
+- output request_otp
+- output [1:0] pwd_fail_count, otp_fail_count
+
+### SECURITY PARAMETERS
+| Parameter | Value | Purpose |
+|---|---|---|
+| MAX_PWD_RETRIES | 3 | Password attempts before lockout |
+| MAX_OTP_RETRIES | 3 | OTP attempts before lockout |
+| OTP_TIMEOUT_LIMIT | 10 (timeout_tick counts) | Max wait time for OTP submission before it counts as failed |
+
+### BEHAVIOR TABLE
+| Current State | Condition | Next State | Action |
+|---|---|---|---|
+| PASSWORD_ENTRY | password_submit AND password_valid | PASSWORD_VERIFIED | clear pwd_fail_count |
+| PASSWORD_ENTRY | password_submit AND !password_valid AND fail_count < MAX-1 | PASSWORD_ENTRY | increment pwd_fail_count |
+| PASSWORD_ENTRY | password_submit AND !password_valid AND fail_count == MAX-1 | LOCKED | lock, assert locked_out |
+| PASSWORD_VERIFIED | — (auto) | OTP_SENT | assert request_otp, reset otp_timeout_counter |
+| OTP_SENT | — (auto) | OTP_VERIFY | begin timeout countdown |
+| OTP_VERIFY | otp_submit AND otp_valid | ACCESS_GRANTED | grant access |
+| OTP_VERIFY | otp_submit AND !otp_valid AND fail_count < MAX-1 | OTP_SENT | increment otp_fail_count, request new OTP |
+| OTP_VERIFY | otp_submit AND !otp_valid AND fail_count == MAX-1 | LOCKED | lock, assert locked_out |
+| OTP_VERIFY | timeout reached (no submit) AND fail_count < MAX-1 | OTP_SENT | increment otp_fail_count (timeout counts as failure), request new OTP |
+| OTP_VERIFY | timeout reached AND fail_count == MAX-1 | LOCKED | lock, assert locked_out |
+| ACCESS_GRANTED | — | ACCESS_GRANTED | hold, access_granted = 1 |
+| LOCKED | reset only | PASSWORD_ENTRY | full state clear |
+| LOCKED | anything else | LOCKED | no exit, access_granted forced 0 |
+
+### EDGE CASES TO HANDLE EXPLICITLY
+1. 3rd consecutive wrong password -> LOCKED, no further password attempts accepted
+2. 3rd consecutive wrong OTP -> LOCKED, no further OTP attempts accepted
+3. OTP timeout expiring repeatedly (user never submits) counts toward the same OTP retry limit as wrong submissions, and after 3 such timeouts -> LOCKED
+4. Once LOCKED, access_granted must be 0 always, and no input combination other than reset can change the state
+
+### DESIGN RULES
+- Style: Behavioral Verilog (state register + next-state combinational logic + output logic, case statements)
+- Reset: synchronous, active-high, clears all fail counters and timeout counter, returns to PASSWORD_ENTRY
+- No latches, no combinational feedback loops
+- Verilog-2001 syntax, fully synthesizable
+
+### DELIVERABLE
+Output one complete Verilog module named `two_factor_auth_controller` implementing the above, with:
+1. Parameter/localparam definitions for states and retry/timeout limits
+2. State register, fail counters, and timeout counter logic
+3. Next-state combinational logic (LOCKED state given highest-priority handling)
+4. Output logic block (access_granted, locked_out, request_otp, fail counts)
+5. Inline comments labeled "SECURITY:" at every retry-limit check, the timeout check, and the lockout enforcement point
+
+Output only the final Verilog code.
