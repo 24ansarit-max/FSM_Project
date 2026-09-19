@@ -1,1 +1,32 @@
+INSTRUCTIONS:
+- Module name: microwave_oven_controller
+- Ports:
+  - input clk
+  - input reset (synchronous, active-high)
+  - input door_open        // 1 = door open, 0 = door closed — CRITICAL SAFETY SIGNAL
+  - input start_btn
+  - input pause_btn
+  - input timer_set_btn
+  - input [7:0] timer_value_in   // seconds to load when timer_set_btn is pressed
+  - input tick_1s               // 1-cycle pulse every simulated second (from external prescaler)
+  - output reg magnetron_on
+  - output reg buzzer
+  - output reg [7:0] display_time
+- States (localparam, binary encoding): IDLE, DOOR_OPEN_ST, DOOR_CLOSED, TIMER_SET, RUNNING, PAUSED, DONE
+  (name the door-open state DOOR_OPEN_ST to avoid clashing with the door_open input signal name)
+- SAFETY RULE (must be implemented at BOTH points below — do not skip either):
+  1. State-level override: in the state register's next-state logic, if door_open == 1, force next_state = DOOR_OPEN_ST unconditionally, regardless of current state (highest priority check, evaluated before any other case logic)
+  2. Output-level override: magnetron_on must be computed as `(state == RUNNING) && !door_open` — never assign magnetron_on = 1 based on state alone
+- Transition rules:
+  - IDLE: door_open ? DOOR_OPEN_ST : (door closes naturally handled below) — on door_open==0 stay IDLE until door closed detected, then go DOOR_CLOSED
+  - DOOR_OPEN_ST: stay here while door_open == 1; when door_open == 0, go to DOOR_CLOSED
+  - DOOR_CLOSED: on timer_set_btn, load timer_value_in into display_time, go to TIMER_SET
+  - TIMER_SET: on start_btn (and door_open == 0), go to RUNNING
+  - RUNNING: decrement display_time on each tick_1s; on pause_btn, go to PAUSED; if display_time reaches 0, go to DONE
+  - PAUSED: magnetron_on = 0 always; on start_btn (and door_open == 0), return to RUNNING
+  - DONE: buzzer = 1, magnetron_on = 0; after one cycle (or on any button press), return to IDLE
+- No latches, no combinational feedback loops
+- Verilog-2001 syntax only, fully synthesizable
+- Add comments explicitly labeled "SAFETY:" at both override points described above
 
+Output only the complete, synthesizable Verilog module.
