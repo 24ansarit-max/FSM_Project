@@ -1,1 +1,16 @@
+Write synthesizable Verilog RTL for a Two-Factor Authentication (2FA) Flow Controller FSM.
 
+States: PASSWORD_ENTRY, PASSWORD_VERIFIED, OTP_SENT, OTP_VERIFY, ACCESS_GRANTED, LOCKED
+
+Requirements:
+- Inputs: clk, reset, password_valid (1 = correct password submitted this cycle), password_submit (pulse, user submitted a password attempt), otp_valid (1 = correct OTP submitted), otp_submit (pulse, user submitted an OTP attempt), timeout_tick (1-cycle pulse indicating a timeout interval elapsed, e.g., from an external timer)
+- Outputs: access_granted, locked_out, request_otp (pulse/level to trigger sending an OTP), fail_count [3:0] (number of consecutive failed attempts), state_debug (optional)
+- Security requirements (must be explicitly implemented):
+  1. Retry limit: after 3 consecutive failed password attempts OR 3 consecutive failed OTP attempts, transition to LOCKED and stay there (do not allow further attempts)
+  2. Timeout: if the user does not submit an OTP within a fixed timeout window (counted via timeout_tick) after OTP_SENT, treat it as a failed attempt and increment the fail counter; if OTP not submitted at all before timeout expires 3 times, go to LOCKED
+  3. Lockout: once LOCKED, the only way out is a full reset (no auto-recovery), and access_granted must be forced to 0 the entire time
+  4. Fail counters for password and OTP must be tracked separately or combined per your design choice, but retry limit of 3 must be enforced for each stage independently
+- Use behavioral Verilog (always block, case statement), synchronous active-high reset
+- Include comments explaining exactly how retry-limit, timeout, and lockout are enforced
+
+Output only the complete, synthesizable Verilog module code.
