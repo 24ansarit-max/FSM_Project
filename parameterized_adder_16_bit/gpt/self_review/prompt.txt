@@ -1,1 +1,16 @@
+Step 1 (Generation):
+"Generate a parameterized 16-bit adder in synthesizable SystemVerilog with carry-in, carry-out, and overflow detection."
 
+Step 2 (Review & Correction):
+"Review the generated RTL against the original specification. Check for:
+
+Functional correctness
+Parameterization (correct use of WIDTH parameter, default value)
+Signed/unsigned handling (overflow detection logic correctness)
+Reset behavior (if registered outputs are used)
+Corner cases (WIDTH=1, all-ones inputs with carry-in, signed overflow boundary)
+Synthesizability
+Unintended latches
+Width mismatches (sum width vs. operand width vs. carry-out)
+
+Identify all potential problems in the generated RTL and provide a corrected, final version of the code."
