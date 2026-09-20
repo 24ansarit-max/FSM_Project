@@ -1,1 +1,15 @@
+"Design a parameterized 16-bit adder in synthesizable SystemVerilog with the following constraints:
 
+Target FPGA: AMD/Xilinx Artix-7
+Device: [insert your exact device, e.g., XC7A100T-CSG324]
+Tool: Vivado 2025.2
+RTL must be synthesizable SystemVerilog
+Avoid unnecessary registers and combinational logic
+Use parameterization (WIDTH parameter, default 16) where applicable
+Minimize LUT and FF utilization
+Avoid inferred latches
+Provide synchronous reset if any output is registered
+Target maximum operating frequency: 100 MHz
+Include carry-in, carry-out, and overflow detection
+
+Provide the RTL code along with a brief explanation of resource and timing considerations for the specified device."
