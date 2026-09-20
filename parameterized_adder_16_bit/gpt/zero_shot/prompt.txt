@@ -1,1 +1,1 @@
-
+"Design a parameterized 16-bit adder in synthesizable SystemVerilog. Provide the RTL code and explain the design."
