@@ -1,1 +1,16 @@
+Step 1 (Generation):
+"Generate an FSM-based elevator controller in synthesizable SystemVerilog for a 4-floor building, including floor request handling, motor direction control, and door control."
 
+Step 2 (Review & Correction):
+"Review the generated RTL against the original specification. Check for:
+
+Functional correctness
+Parameterization (NUM_FLOORS parameter usage)
+FSM completeness (all states reachable, no dead states, default case handled)
+Reset behavior
+Corner cases (multiple simultaneous requests, request for current floor, door obstruction, requests beyond valid floor range)
+Synthesizability
+Unintended latches
+Width mismatches (floor number encoding vs. NUM_FLOORS)
+
+Identify all potential problems in the generated RTL and provide a corrected, final version of the code."
