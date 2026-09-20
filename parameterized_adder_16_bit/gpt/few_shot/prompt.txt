@@ -1,1 +1,23 @@
+"Here is an example of a simple 4-bit ripple-carry adder implementation:
 
+module adder4 (
+  input  logic [3:0] a, b,
+  input  logic cin,
+  output logic [3:0] sum,
+  output logic cout
+);
+  assign {cout, sum} = a + b + cin;
+endmodule
+
+Here is an example of a parameterized 8-bit adder with a generic WIDTH parameter:
+
+module adder_param #(parameter WIDTH = 8) (
+  input  logic [WIDTH-1:0] a, b,
+  input  logic cin,
+  output logic [WIDTH-1:0] sum,
+  output logic cout
+);
+  assign {cout, sum} = a + b + cin;
+endmodule
+
+Based on these examples, generate a synthesizable 16-bit parameterized adder with a configurable WIDTH parameter (default 16), carry-in, carry-out, and overflow detection for signed operation."
