@@ -1,1 +1,15 @@
+"Design an FSM-based elevator controller in synthesizable SystemVerilog with the following constraints:
 
+Target FPGA: AMD/Xilinx Artix-7
+Device: [insert your exact device, e.g., XC7A100T-CSG324]
+Tool: Vivado 2025.2
+RTL must be synthesizable SystemVerilog
+Avoid unnecessary registers and combinational logic
+Use parameterization for number of floors (parameter NUM_FLOORS, default 4)
+Minimize LUT and FF utilization
+Avoid inferred latches
+Provide synchronous reset
+Target maximum operating frequency: 100 MHz
+Use a fully enumerated, one-hot or binary-encoded FSM (specify encoding choice and justify it)
+
+Provide the RTL code along with a brief explanation of resource and timing considerations for the specified device."
