@@ -1,18 +1,1 @@
-Design a Verilog RTL module for a single-elevator, multi-floor elevator controller.
-
-Requirements:
-- Support N floors (parameterizable, default 4 floors: 0 to 3).
-- Implement a Finite State Machine with these states: IDLE, MOVING_UP, MOVING_DOWN, DOOR_OPEN, DOOR_CLOSED.
-- Inputs: clock, active-low reset, floor request buttons (one bit per floor, e.g., floor_request[N-1:0]), current floor sensor (current_floor), door sensor (door_obstacle).
-- Outputs: motor_up, motor_down, door_open_signal, door_close_signal, current_state (for debug), floor_display.
-- Logic:
-  - Maintain a queue/register of pending floor requests.
-  - When idle and a request exists, decide direction based on nearest requested floor.
-  - Move toward the requested floor one floor per fixed number of clock cycles (use a counter to simulate floor travel time).
-  - On reaching the requested floor, transition to DOOR_OPEN, hold for a fixed number of cycles, then DOOR_CLOSED, then re-evaluate pending requests.
-  - If multiple requests exist, continue in the same direction until no more requests in that direction, then reverse (elevator scan/SCAN algorithm), otherwise go IDLE.
-  - Door should reopen if door_obstacle is asserted during closing.
-- Use synchronous logic with a single always block for state transitions and a separate always block for output logic (Moore-style FSM).
-- Write clean, synthesizable Verilog with proper parameter declarations, state encoding using localparam, and comments explaining each block.
-
-Generate the complete Verilog RTL code with module declaration, port list, internal signals, state machine, and output logic.
+"Design a synthesizable SystemVerilog module for an elevator controller (e.g., a 4-floor elevator system). Provide the RTL code and explain the design."
