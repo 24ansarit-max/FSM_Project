@@ -1,1 +1,11 @@
+"Before generating RTL for a parameterized 16-bit adder, go through the following design stages explicitly:
 
+Identify inputs and outputs (operands, carry-in, sum, carry-out, overflow flag).
+Define the required operations (addition, with optional signed/unsigned mode).
+Define the datapath operations (bit-width of intermediate signals, carry propagation).
+Identify corner cases (all-ones overflow, carry-in with max operands, signed overflow, WIDTH=1 edge case).
+Determine reset behavior (if registered outputs are used, specify synchronous/asynchronous reset).
+
+Specification → Operations → Widths → Signedness → Overflow → RTL
+
+Then generate synthesizable SystemVerilog for a parameterized 16-bit adder (default WIDTH = 16) based on this analysis."
