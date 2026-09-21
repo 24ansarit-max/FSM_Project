@@ -1,8 +1,14 @@
+`timescale 1ns/1ps
+
 module elevator_fsm (
     input  logic       clk,
     input  logic       rst,
 
-    // One request input for each floor: [3]=Floor 3, [0]=Floor 0
+    // Floor requests
+    // [3] = Floor 3
+    // [2] = Floor 2
+    // [1] = Floor 1
+    // [0] = Floor 0
     input  logic [3:0] floor_request,
 
     // Current floor: 0 to 3
@@ -19,6 +25,11 @@ module elevator_fsm (
     output logic [1:0] floor_indicator
 );
 
+
+    //====================================================
+    // FSM STATES
+    //====================================================
+
     typedef enum logic [2:0] {
         IDLE         = 3'b000,
         MOVING_UP    = 3'b001,
@@ -28,18 +39,40 @@ module elevator_fsm (
         DOOR_CLOSING = 3'b101
     } state_t;
 
-    state_t state, next_state;
+    state_t state;
+    state_t next_state;
+
+
+    //====================================================
+    // REQUEST REGISTERS
+    //====================================================
 
     logic [3:0] requests;
     logic [3:0] next_requests;
+
+
+    //====================================================
+    // TIMER
+    //====================================================
 
     logic [3:0] timer;
     logic [3:0] next_timer;
 
 
-    //========================================================
-    // Sequential logic
-    //========================================================
+    //====================================================
+    // REQUEST FLAGS
+    //====================================================
+
+    logic request_here;
+    logic request_above;
+    logic request_below;
+
+    integer i;
+
+
+    //====================================================
+    // SEQUENTIAL LOGIC
+    //====================================================
 
     always_ff @(posedge clk or posedge rst) begin
 
@@ -62,15 +95,52 @@ module elevator_fsm (
     end
 
 
-    //========================================================
-    // Next-state and request logic
-    //========================================================
+    //====================================================
+    // REQUEST CLASSIFICATION
+    //
+    // This replaces the illegal dynamic part-selects.
+    //====================================================
 
     always_comb begin
 
+        request_here  = 1'b0;
+        request_above = 1'b0;
+        request_below = 1'b0;
+
+        for (i = 0; i < 4; i = i + 1) begin
+
+            if (requests[i] || floor_request[i]) begin
+
+                if (i == current_floor) begin
+                    request_here = 1'b1;
+                end
+
+                else if (i > current_floor) begin
+                    request_above = 1'b1;
+                end
+
+                else begin
+                    request_below = 1'b1;
+                end
+
+            end
+
+        end
+
+    end
+
+
+    //====================================================
+    // NEXT STATE LOGIC
+    //====================================================
+
+    always_comb begin
+
+        // Default values
         next_state   = state;
         next_requests = requests | floor_request;
         next_timer   = timer;
+
 
         case (state)
 
@@ -80,16 +150,21 @@ module elevator_fsm (
 
             IDLE: begin
 
-                if (requests[current_floor])
+                if (request_here) begin
                     next_state = DOOR_OPENING;
+                end
 
-                else if ((current_floor < 3) &&
-                         (|requests[3:current_floor+1]))
+                else if (request_above) begin
                     next_state = MOVING_UP;
+                end
 
-                else if ((current_floor > 0) &&
-                         (|requests[current_floor-1:0]))
+                else if (request_below) begin
                     next_state = MOVING_DOWN;
+                end
+
+                else begin
+                    next_state = IDLE;
+                end
 
             end
 
@@ -100,11 +175,19 @@ module elevator_fsm (
 
             MOVING_UP: begin
 
-                if (requests[current_floor])
+                // When request is reached
+                if (request_here) begin
                     next_state = DOOR_OPENING;
+                end
 
-                else if (current_floor == 3)
-                    next_state = DOOR_OPENING;
+                // Stop at top floor
+                else if (current_floor == 2'd3) begin
+                    next_state = IDLE;
+                end
+
+                else begin
+                    next_state = MOVING_UP;
+                end
 
             end
 
@@ -115,11 +198,19 @@ module elevator_fsm (
 
             MOVING_DOWN: begin
 
-                if (requests[current_floor])
+                // When request is reached
+                if (request_here) begin
                     next_state = DOOR_OPENING;
+                end
 
-                else if (current_floor == 0)
-                    next_state = DOOR_OPENING;
+                // Stop at ground floor
+                else if (current_floor == 2'd0) begin
+                    next_state = IDLE;
+                end
+
+                else begin
+                    next_state = MOVING_DOWN;
+                end
 
             end
 
@@ -130,9 +221,12 @@ module elevator_fsm (
 
             DOOR_OPENING: begin
 
-                // Keep door opening for a few clock cycles
-                if (timer == 4'd2)
+                // Door opening time = 3 clock cycles
+                if (timer >= 4'd2)
                     next_state = DOOR_OPEN;
+
+                else
+                    next_state = DOOR_OPENING;
 
             end
 
@@ -143,12 +237,22 @@ module elevator_fsm (
 
             DOOR_OPEN: begin
 
-                // Current floor request is serviced
+                // Service current-floor request
                 next_requests[current_floor] = 1'b0;
 
-                // Keep door open for a few cycles
-                if (timer == 4'd5)
+                // Keep door open if obstacle exists
+                if (door_obstacle) begin
+                    next_state = DOOR_OPEN;
+                end
+
+                // Door open time = 6 clock cycles
+                else if (timer >= 4'd5) begin
                     next_state = DOOR_CLOSING;
+                end
+
+                else begin
+                    next_state = DOOR_OPEN;
+                end
 
             end
 
@@ -159,19 +263,30 @@ module elevator_fsm (
 
             DOOR_CLOSING: begin
 
-                // Reopen if obstacle is detected
-                if (door_obstacle)
+                // Reopen if obstacle detected
+                if (door_obstacle) begin
                     next_state = DOOR_OPENING;
+                end
 
-                // Door closing completed
-                else if (timer == 4'd2)
+                // Closing time = 3 clock cycles
+                else if (timer >= 4'd2) begin
                     next_state = IDLE;
+                end
+
+                else begin
+                    next_state = DOOR_CLOSING;
+                end
 
             end
 
 
+            //================================================
+            // DEFAULT
+            //================================================
+
             default: begin
                 next_state = IDLE;
+                next_requests = requests | floor_request;
             end
 
         endcase
@@ -179,13 +294,12 @@ module elevator_fsm (
     end
 
 
-    //========================================================
-    // Output logic
-    //========================================================
+    //====================================================
+    // OUTPUT LOGIC
+    //====================================================
 
     always_comb begin
 
-        // Default outputs
         motor_up   = 1'b0;
         motor_down = 1'b0;
         door_open  = 1'b0;
@@ -213,6 +327,13 @@ module elevator_fsm (
                 door_close = 1'b1;
             end
 
+            IDLE: begin
+                motor_up   = 1'b0;
+                motor_down = 1'b0;
+                door_open  = 1'b0;
+                door_close = 1'b0;
+            end
+
             default: begin
                 motor_up   = 1'b0;
                 motor_down = 1'b0;
@@ -225,10 +346,11 @@ module elevator_fsm (
     end
 
 
-    //========================================================
-    // Current floor indicator
-    //========================================================
+    //====================================================
+    // FLOOR INDICATOR
+    //====================================================
 
     assign floor_indicator = current_floor;
+
 
 endmodule
