@@ -1,0 +1,14 @@
+Design a microwave oven controller in synthesizable SystemVerilog with the following constraints:
+
+Target FPGA: AMD/Xilinx Artix-7
+Device: [your exact device, e.g., XC7A35T-1CPG236C]
+Tool: Vivado 2025.2
+RTL must be synthesizable SystemVerilog only.
+Avoid unnecessary registers and combinational logic.
+Use parameterization where applicable (e.g., timer bit-width, clock frequency for timing calculations).
+Minimize LUT and FF utilization.
+Avoid inferred latches — ensure all combinational outputs are fully assigned in every branch.
+Provide synchronous reset for all state and output registers.
+Target maximum operating frequency: 100 MHz.
+
+The design must handle door status, start/stop control, a cooking timer, magnetron control, light, and turntable motor.
