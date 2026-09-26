@@ -1,5 +1,20 @@
-Here is an example of a simple traffic light controller FSM implemented in SystemVerilog: [insert traffic light FSM code].
+Here is an example of a simple traffic light FSM in SystemVerilog:
 
-Here is an example of a vending machine controller FSM in SystemVerilog: [insert vending machine FSM code].
+module traffic_light (
+    input  logic clk, rst,
+    output logic [1:0] light // 00=Red, 01=Yellow, 10=Green
+);
+// (typical 3-state Moore FSM with synchronous reset and timed transitions)
+...
 
-Based on the structure and coding style used in these examples, generate a synthesizable SystemVerilog design for a microwave oven controller that manages door status, start/stop input, a countdown timer, magnetron control, and turntable/light control.
+Here is another example of a vending machine FSM with safety interlocks (won't dispense if coin count is insufficient):
+
+module vending_machine (
+    input  logic clk, rst, coin_in, select,
+    output logic dispense
+);
+// (state machine that blocks the dispense output unless a safety condition is met)
+...
+
+Based on the structure and interlock-safety style shown in these examples, generate a synthesizable SystemVerilog FSM for a Microwave Oven Controller with states: Idle, Door Open, Door Closed, Timer Set, Running, Paused, Done. 
+The design must guarantee the oven cannot enter or remain in the Running state whenever the door is open, using the same kind of safety-interlock logic style shown above. Provide full RTL and explanation.
