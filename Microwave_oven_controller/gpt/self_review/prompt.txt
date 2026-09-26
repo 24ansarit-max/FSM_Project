@@ -1,0 +1,16 @@
+Step 1 — Generate the RTL:
+Design a synthesizable SystemVerilog microwave oven controller handling door status, start/stop input, a countdown timer, magnetron control, light, and turntable motor.
+
+Step 2 — Review the generated RTL against the original specification. Check specifically for:
+
+Functional correctness (e.g., does opening the door during cooking immediately stop the magnetron?)
+Parameterization (timer width, clock frequency)
+Signed/unsigned handling in timer/counter logic
+Reset behavior (synchronous, all outputs to safe states)
+FSM completeness (all states reachable, no missing transitions, default case handled)
+Corner cases (door opened mid-cook, stop during idle, timer = 0, re-closing door after interruption)
+Synthesizability
+Unintended latches (all combinational branches fully assigned)
+Width mismatches in timer/counter arithmetic
+
+Step 3 — Identify all potential problems found during review, and provide corrected, synthesizable RTL that resolves them.
