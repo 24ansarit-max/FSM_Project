@@ -1,4 +1,4 @@
-```systemverilog
+
 module microwave_controller #(
     parameter int TIMER_WIDTH = 16
 )(
