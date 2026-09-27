@@ -1,0 +1,18 @@
+Generate synthesizable SystemVerilog RTL for a Two-Factor Authentication Flow Controller FSM following these exact instructions:
+
+States required: Password Entry, Password Verified, OTP Sent, OTP Verify, Access Granted, Locked.
+
+Hardware/design constraints:
+- Target FPGA: AMD/Xilinx Artix-7
+- Tool: Vivado 2025.2
+- Must use synchronous reset (active-high, on clk posedge)
+- Must NOT infer any latches
+- access_granted output must be combinationally forced LOW in every state except Access Granted (hardwired safety override, not just state-based)
+- locked_out output must be combinationally forced HIGH only in the Locked state, and must remain asserted until an explicit unlock/reset condition, even if other inputs change
+- Use parameterized retry limit (e.g., MAX_ATTEMPTS) and parameterized OTP timeout counter width
+- Minimize LUT and flip-flop usage; avoid unnecessary registers
+- Target maximum operating frequency: 100 MHz
+- Clearly separate state register, next-state logic, retry-counter logic, and output logic
+- Provide synchronous reset behavior that clears all attempt counters and returns to Password Entry
+
+Provide the complete RTL code only, followed by a brief explanation of how the lockout and retry-limit logic is guaranteed at the hardware level.
