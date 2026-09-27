@@ -1,138 +1,154 @@
 `timescale 1ns/1ps
 
 module vending_machine #(
-    parameter int unsigned NUM_ITEMS       = 4,
-    parameter int unsigned NUM_DENOM       = 4,
-    parameter int unsigned PRICE_WIDTH     = 8,
-    parameter int unsigned BALANCE_WIDTH   = PRICE_WIDTH + 1,
-
-    // Supported coin denominations
-    parameter logic [PRICE_WIDTH-1:0] COIN_0 = 8'd1,
-    parameter logic [PRICE_WIDTH-1:0] COIN_1 = 8'd2,
-    parameter logic [PRICE_WIDTH-1:0] COIN_2 = 8'd5,
-    parameter logic [PRICE_WIDTH-1:0] COIN_3 = 8'd10
+    parameter int COIN_WIDTH    = 4,
+    parameter int PRICE_WIDTH   = 8,
+    parameter int BALANCE_WIDTH = 9
 )(
-    input  logic                         clk,
-    input  logic                         rst,
+    input  logic                  clk,
+    input  logic                  rst,              // synchronous active-high
 
     // Coin interface
-    input  logic                         coin_valid,
-    input  logic [PRICE_WIDTH-1:0]       coin_value,
+    input  logic                  coin_valid,
+    input  logic [COIN_WIDTH-1:0] coin_value,
 
     // Item interface
-    input  logic [$clog2(NUM_ITEMS)-1:0] item_select,
-    input  logic                         item_select_valid,
-    input  logic [PRICE_WIDTH-1:0]       item_price,
-    input  logic                         item_stock,
+    input  logic                  item_select,
+    input  logic [PRICE_WIDTH-1:0] item_price,
+    input  logic                  stock_available,
 
-    // Controller outputs
-    output logic                         dispense,
-    output logic [PRICE_WIDTH-1:0]       change_amount,
-    output logic                         error
+    // Outputs
+    output logic                  dispense_item,
+    output logic [PRICE_WIDTH-1:0] change_amount,
+    output logic                  error,
+
+    // Optional balance/status output
+    output logic [BALANCE_WIDTH-1:0] balance
 );
 
-    //==========================================================
-    // State declaration
-    //==========================================================
+    //============================================================
+    // State definitions
+    //============================================================
     typedef enum logic [2:0] {
-        IDLE,
-        COIN_INSERTED,
-        ITEM_SELECTED,
-        DISPENSING,
-        CHANGE_RETURN,
-        OUT_OF_STOCK_ERROR
+        IDLE             = 3'b000,
+        COIN_INSERTED    = 3'b001,
+        ITEM_SELECTED    = 3'b010,
+        DISPENSING       = 3'b011,
+        CHANGE_RETURN    = 3'b100,
+        OUT_OF_STOCK_ERR = 3'b101
     } state_t;
 
     state_t state, next_state;
 
-    //==========================================================
+    //============================================================
     // Registers
-    //==========================================================
+    //============================================================
     logic [BALANCE_WIDTH-1:0] balance_reg;
-    logic [BALANCE_WIDTH-1:0] change_reg;
+    logic [PRICE_WIDTH-1:0]   change_reg;
 
-    //==========================================================
-    // Coin validity
-    //==========================================================
-    logic coin_supported;
+    //============================================================
+    // Combinational arithmetic
+    //============================================================
+    logic [BALANCE_WIDTH-1:0] coin_extended;
+    logic [BALANCE_WIDTH-1:0] price_extended;
+    logic [BALANCE_WIDTH:0]   balance_sum;
 
-    always_comb begin
-        coin_supported = 1'b0;
+    assign coin_extended  = {{(BALANCE_WIDTH-COIN_WIDTH){1'b0}},
+                             coin_value};
 
-        if (NUM_DENOM >= 1 && coin_value == COIN_0)
-            coin_supported = 1'b1;
-        else if (NUM_DENOM >= 2 && coin_value == COIN_1)
-            coin_supported = 1'b1;
-        else if (NUM_DENOM >= 3 && coin_value == COIN_2)
-            coin_supported = 1'b1;
-        else if (NUM_DENOM >= 4 && coin_value == COIN_3)
-            coin_supported = 1'b1;
+    assign price_extended = {{(BALANCE_WIDTH-PRICE_WIDTH){1'b0}},
+                              item_price};
+
+    // Extra bit provides overflow detection.
+    assign balance_sum = {1'b0, balance_reg} +
+                         {1'b0, coin_extended};
+
+    //============================================================
+    // 1. STATE REGISTER / DATA REGISTERS
+    //============================================================
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            state       <= IDLE;
+            balance_reg <= '0;
+            change_reg  <= '0;
+        end
+        else begin
+            state <= next_state;
+
+            // Accumulate coins only during an active transaction.
+            if (coin_valid &&
+                ((state == IDLE) || (state == COIN_INSERTED))) begin
+
+                // Saturate instead of wrapping on accumulator overflow.
+                if (balance_sum[BALANCE_WIDTH])
+                    balance_reg <= {BALANCE_WIDTH{1'b1}};
+                else
+                    balance_reg <= balance_sum[BALANCE_WIDTH-1:0];
+            end
+
+            // Calculate change only after stock has been confirmed.
+            if ((state == ITEM_SELECTED) &&
+                stock_available &&
+                (balance_reg >= price_extended)) begin
+
+                change_reg <=
+                    balance_reg[PRICE_WIDTH-1:0] - item_price;
+            end
+
+            // Transaction completed after change return.
+            if (state == CHANGE_RETURN) begin
+                balance_reg <= '0;
+                change_reg  <= '0;
+            end
+
+            // Refund complete after out-of-stock error.
+            if (state == OUT_OF_STOCK_ERR) begin
+                balance_reg <= '0;
+                change_reg  <= '0;
+            end
+
+            // Exact payment: no change is required.
+            if ((state == DISPENSING) &&
+                (balance_reg == price_extended)) begin
+
+                balance_reg <= '0;
+                change_reg  <= '0;
+            end
+        end
     end
 
-    //==========================================================
-    // Balance arithmetic with explicit overflow protection
-    //==========================================================
-    logic [BALANCE_WIDTH-1:0] coin_ext;
-    logic [BALANCE_WIDTH-1:0] balance_sum;
-    logic                     balance_overflow;
-
+    //============================================================
+    // 2. NEXT-STATE LOGIC
+    //============================================================
     always_comb begin
-        coin_ext = '0;
-        coin_ext[PRICE_WIDTH-1:0] = coin_value;
 
-        balance_sum = balance_reg + coin_ext;
-
-        // Explicit unsigned overflow protection.
-        // Saturate instead of allowing wrap-around.
-        if (balance_sum < balance_reg)
-            balance_overflow = 1'b1;
-        else
-            balance_overflow = 1'b0;
-    end
-
-    //==========================================================
-    // Next-state logic
-    //==========================================================
-    always_comb begin
         next_state = state;
 
         case (state)
 
-            //--------------------------------------------------
-            // IDLE
-            //--------------------------------------------------
             IDLE: begin
-                if (coin_valid && coin_supported)
+                if (coin_valid)
                     next_state = COIN_INSERTED;
             end
 
-            //--------------------------------------------------
-            // COIN INSERTED
-            //--------------------------------------------------
             COIN_INSERTED: begin
 
-                // Selection is allowed only when balance is
-                // sufficient. Stock is checked in the next
-                // state BEFORE dispensing is possible.
-                if (item_select_valid &&
-                    (balance_reg >= {{(BALANCE_WIDTH-PRICE_WIDTH){1'b0}},
-                                      item_price})) begin
+                // Item selection is accepted only when
+                // sufficient balance already exists.
+                if (item_select &&
+                    (balance_reg >= price_extended)) begin
 
                     next_state = ITEM_SELECTED;
                 end
             end
 
-            //--------------------------------------------------
-            // ITEM SELECTED
-            //--------------------------------------------------
             ITEM_SELECTED: begin
 
-                // IMPORTANT:
-                // Out-of-stock is checked before DISPENSING.
-                if (!item_stock) begin
-                    next_state = OUT_OF_STOCK_ERROR;
+                // Stock check has priority over dispensing.
+                if (!stock_available) begin
+                    next_state = OUT_OF_STOCK_ERR;
                 end
-                else if (balance_reg < item_price) begin
+                else if (balance_reg < price_extended) begin
                     next_state = COIN_INSERTED;
                 end
                 else begin
@@ -140,33 +156,22 @@ module vending_machine #(
                 end
             end
 
-            //--------------------------------------------------
-            // DISPENSING
-            //--------------------------------------------------
             DISPENSING: begin
-                if (balance_reg > item_price)
+
+                if (balance_reg > price_extended)
                     next_state = CHANGE_RETURN;
                 else
                     next_state = IDLE;
             end
 
-            //--------------------------------------------------
-            // CHANGE RETURN
-            //--------------------------------------------------
             CHANGE_RETURN: begin
                 next_state = IDLE;
             end
 
-            //--------------------------------------------------
-            // OUT OF STOCK / ERROR
-            //--------------------------------------------------
-            OUT_OF_STOCK_ERROR: begin
+            OUT_OF_STOCK_ERR: begin
                 next_state = IDLE;
             end
 
-            //--------------------------------------------------
-            // Illegal state recovery
-            //--------------------------------------------------
             default: begin
                 next_state = IDLE;
             end
@@ -174,109 +179,53 @@ module vending_machine #(
         endcase
     end
 
-    //==========================================================
-    // State register + data registers
-    //==========================================================
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            state        <= IDLE;
-            balance_reg  <= '0;
-            change_reg   <= '0;
-        end
-        else begin
-            state <= next_state;
-
-            //--------------------------------------------------
-            // Accept coin only during transaction entry/
-            // accumulation states.
-            //--------------------------------------------------
-            if (coin_valid &&
-                coin_supported &&
-                (state == IDLE || state == COIN_INSERTED)) begin
-
-                if (balance_overflow)
-                    balance_reg <= {BALANCE_WIDTH{1'b1}};
-                else
-                    balance_reg <= balance_sum;
-            end
-
-            //--------------------------------------------------
-            // Calculate change after successful stock check.
-            //--------------------------------------------------
-            if ((state == ITEM_SELECTED) &&
-                item_stock &&
-                (balance_reg >= item_price)) begin
-
-                change_reg <= balance_reg -
-                              {{(BALANCE_WIDTH-PRICE_WIDTH){1'b0}},
-                               item_price};
-            end
-
-            //--------------------------------------------------
-            // Clear transaction after change/error.
-            //--------------------------------------------------
-            if ((state == CHANGE_RETURN) ||
-                (state == OUT_OF_STOCK_ERROR)) begin
-
-                balance_reg <= '0;
-                change_reg  <= '0;
-            end
-
-            //--------------------------------------------------
-            // Exact-payment transaction ends after dispensing.
-            //--------------------------------------------------
-            if ((state == DISPENSING) &&
-                (balance_reg == item_price)) begin
-
-                balance_reg <= '0;
-                change_reg  <= '0;
-            end
-        end
-    end
-
-    //==========================================================
-    // Output logic
-    //==========================================================
+    //============================================================
+    // 3. OUTPUT LOGIC
+    //============================================================
     always_comb begin
 
-        // Defaults prevent latch inference.
-        dispense      = 1'b0;
-        change_amount  = '0;
-        error          = 1'b0;
+        dispense_item = 1'b0;
+        change_amount = '0;
+        error         = 1'b0;
 
         case (state)
 
-            //--------------------------------------------------
-            // DISPENSING
-            //--------------------------------------------------
             DISPENSING: begin
-                dispense = 1'b1;
+                dispense_item = 1'b1;
             end
 
-            //--------------------------------------------------
-            // CHANGE RETURN
-            //--------------------------------------------------
             CHANGE_RETURN: begin
-                change_amount = change_reg[PRICE_WIDTH-1:0];
+                change_amount = change_reg;
             end
 
-            //--------------------------------------------------
-            // OUT OF STOCK / ERROR
-            //--------------------------------------------------
-            OUT_OF_STOCK_ERROR: begin
+            OUT_OF_STOCK_ERR: begin
                 error = 1'b1;
 
-                // Refund complete inserted balance.
+                // Refund the complete inserted balance.
                 change_amount = balance_reg[PRICE_WIDTH-1:0];
             end
 
             default: begin
-                dispense      = 1'b0;
+                dispense_item = 1'b0;
                 change_amount = '0;
                 error         = 1'b0;
             end
 
         endcase
+
+        //========================================================
+        // HARDWARE SAFETY INTERLOCK
+        // This condition has priority over the FSM state.
+        // Dispensing is physically/logically impossible when
+        // the selected item is unavailable.
+        //========================================================
+        if (!stock_available)
+            dispense_item = 1'b0;
     end
+
+    //============================================================
+    // Balance output
+    //============================================================
+    assign balance = balance_reg;
 
 endmodule
