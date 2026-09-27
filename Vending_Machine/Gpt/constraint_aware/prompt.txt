@@ -5,14 +5,13 @@ States required: Idle, Coin Inserted, Item Selected, Dispensing, Change Return, 
 Hardware/design constraints:
 - Target FPGA: AMD/Xilinx Artix-7
 - Tool: Vivado 2025.2
+- RTL must be synthesizable SystemVerilog
 - Must use synchronous reset (active-high, on clk posedge)
 - Must NOT infer any latches
-- Coin balance register and change calculation must use unsigned arithmetic with explicit overflow protection
-- Out-of-stock/error condition must be checked BEFORE allowing transition to Dispensing state
-- Use parameterization for number of item slots, coin denominations, and price bit-width
-- Minimize LUT and flip-flop usage; avoid unnecessary registers
-- Target maximum operating frequency: 100 MHz
+- dispense_item output must be combinationally forced LOW whenever stock_available = 0 for the selected item (hardwired safety/logic interlock, not just state-based)
+- Use parameterization for coin-value width, price width, and balance accumulator width
+- Avoid unnecessary registers and combinational logic; minimize LUT and FF utilization
 - Clearly separate state register, next-state logic, and output logic (3-process or equivalent clean FSM coding style)
-- Include clear, well-named input/output ports suitable for simulation and testbench integration
+- Target maximum operating frequency: 100 MHz
 
-Provide the complete RTL code only, followed by a brief explanation of how insufficient-balance and out-of-stock edge cases are handled at the hardware level.
+Provide the complete RTL code only, followed by a brief explanation of how insufficient-coin, sold-out, and change-return cases are each guaranteed correct at the hardware level.
