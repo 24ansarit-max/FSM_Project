@@ -1,18 +1,16 @@
+I want you to design a Vending Machine Controller FSM in synthesizable SystemVerilog.
+Before writing any RTL, think through the design step by step:
 
-Design a Vending Machine Controller FSM in Verilog. Think through the design step by step before writing code.
+1. Identify all inputs and outputs (coin input value, coin valid pulse, item select, item price, item stock status, dispense output, change output, error output, etc.)
+2. List all states: Idle, Coin Inserted, Item Selected, Dispensing, Change Return, Out-of-Stock/Error.
+3. Define the state transition conditions for each state, especially:
+   - When does the machine move from Idle to Coin Inserted?
+   - What condition allows moving from Coin Inserted to Item Selected (sufficient balance)?
+   - What happens if the selected item is out of stock?
+   - What happens if inserted amount is insufficient for the selected item?
+   - How does the machine decide to enter Change Return vs go straight back to Idle?
+4. Identify corner cases (e.g., coin inserted but no item selected within timeout, item selected but insufficient funds, item goes out-of-stock mid-transaction, multiple coins inserted rapidly, exact change vs overpayment).
+5. Define reset behavior (synchronous reset, clearing balance and returning to Idle).
+6. Only after completing the above steps, generate the synthesizable SystemVerilog RTL implementing this FSM.
 
-Step 1: List the states — IDLE, COIN_INSERTED, ITEM_SELECTED, DISPENSING, CHANGE_RETURN, OUT_OF_STOCK/ERROR — and describe the purpose of each.
-
-Step 2: Define the inputs needed to drive transitions: coin insertion/value, item selection code, item price lookup, and per-item stock availability flags. Decide data widths (e.g., 2-bit item select for 4 items, coin value accumulator width).
-
-Step 3: Walk through the normal transaction flow: IDLE -> COIN_INSERTED -> ITEM_SELECTED -> DISPENSING -> CHANGE_RETURN -> IDLE. Describe what happens and what is compared/computed at each step (accumulated coins vs. item price).
-
-Step 4: Walk through the edge cases explicitly:
-   a) Insufficient coins: item selected but accumulated value < price -> what state to go to, and how the machine waits for more coins without losing already-inserted value.
-   b) Sold-out item: item selected but stock flag = 0 -> transition to OUT_OF_STOCK/ERROR, ensure inserted coins are refunded, then return to IDLE.
-
-Step 5: Define the next-state logic and output logic (dispense, change_amount, error, ready) based on Steps 1–4.
-
-Step 6: Write the complete, synthesizable Verilog module using behavioral style (state register + next-state combinational block + output block), synchronous active-high reset, with comments explaining each state and edge case.
-
-Provide your step-by-step reasoning first, then the final Verilog code.
+Show your reasoning for each step before presenting the final RTL code.
