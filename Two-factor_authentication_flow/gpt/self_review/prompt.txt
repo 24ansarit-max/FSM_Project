@@ -1,0 +1,31 @@
+Step 1 — Generation:
+Design a synthesizable SystemVerilog FSM-based controller for a Two-Factor Authentication flow with the following states:
+Password Entry, Password Verified, OTP Sent, OTP Verify, Access Granted, Locked.
+
+Inputs: password_valid, otp_valid, otp_timeout, submit, reset.
+Outputs: request_otp, access_granted, locked_out, attempt_count/display.
+
+The design must enforce a parameterized maximum retry limit for password entry and OTP verification, and lock out access when exceeded.
+
+Generate the complete RTL code for this design.
+
+Step 2 — Review:
+Now review the RTL you just generated against the original specification. Explicitly check each of the following and report any issues found:
+- Functional correctness (does every state transition match the intended 2FA logic?)
+- Parameterization (retry limit, timeout width — are these hardcoded or parameterized?)
+- Signed/unsigned handling (attempt counters — any risk of underflow/overflow?)
+- Reset behavior (does synchronous reset correctly clear attempt counters, OTP state, and return to Password Entry?)
+- FSM completeness (are all six states reachable? Is there a defined exit from Locked — timeout-based or external reset?)
+- Corner cases:
+   - Attempt counter reaching the limit exactly on the last allowed try
+   - OTP timeout counted as a failed OTP attempt
+   - Repeated password failures vs. repeated OTP failures — are they tracked correctly and independently if required?
+   - Reset asserted while in Locked state — does it improperly bypass lockout policy?
+   - submit signal held high for multiple cycles (should not cause multiple counted attempts)
+- Synthesizability (any behavioral constructs or blocking issues?)
+- Unintended latches (any incomplete if/case statements in combinational blocks?)
+- Width mismatches (counter width vs. MAX_ATTEMPTS parameter — any truncation risk?)
+- Security-specific check: can access_granted ever glitch high transiently during a state transition, even for one clock cycle, before the FSM settles?
+
+Step 3 — Correction:
+Based on the issues identified above, provide a corrected version of the complete RTL code, with a short note summarizing what was fixed and why.
