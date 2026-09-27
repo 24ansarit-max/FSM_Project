@@ -1,19 +1,15 @@
-Design a Two-Factor Authentication Flow Controller FSM in Verilog. Think through the design step by step before writing code, with special focus on security-critical logic.
+I want you to design a Two-Factor Authentication (2FA) Flow Controller FSM in synthesizable SystemVerilog. 
+Before writing any RTL, think through the design step by step:
 
-Step 1: List the states — PASSWORD_ENTRY, PASSWORD_VERIFIED, OTP_SENT, OTP_VERIFY, ACCESS_GRANTED, LOCKED — and describe the purpose of each.
+1. Identify all inputs and outputs (password_valid, otp_valid, otp_timeout, submit, retry limit parameter, request_otp, access_granted, locked_out, attempt counter/display, etc.)
+2. List all states: Password Entry, Password Verified, OTP Sent, OTP Verify, Access Granted, Locked.
+3. Define the state transition conditions for each state, especially:
+   - What moves Password Entry -> Password Verified vs. back to Password Entry (retry) vs. -> Locked (limit exceeded)?
+   - What triggers Password Verified -> OTP Sent?
+   - What moves OTP Verify -> Access Granted vs. back to OTP Sent/OTP Verify (retry) vs. -> Locked?
+   - How does an OTP timeout affect the retry count?
+4. Identify corner cases (e.g., correct password but OTP always fails, OTP timeout counted as a failed attempt, retry counter reaching the limit exactly on the last allowed attempt, what happens on reset while Locked, whether Locked requires a timeout period or external reset to exit).
+5. Define reset behavior (synchronous reset, default state, clearing retry counters).
+6. Only after completing the above steps, generate the synthesizable SystemVerilog RTL implementing this FSM.
 
-Step 2: Define the normal (happy-path) flow: PASSWORD_ENTRY (correct password) -> PASSWORD_VERIFIED -> OTP_SENT (system sends OTP) -> OTP_VERIFY (user submits OTP) -> ACCESS_GRANTED (correct OTP). Describe the trigger for each transition.
-
-Step 3: Define the retry-limit logic for password attempts: describe a fail counter that increments on each wrong password_submit, and specify the exact condition (3rd consecutive failure) that forces a transition to LOCKED instead of retrying.
-
-Step 4: Define the retry-limit logic for OTP attempts, structured the same way as Step 3, but using a separate (or shared, justify your choice) fail counter for OTP_VERIFY.
-
-Step 5: Define the timeout logic: describe how timeout_tick pulses are counted while in OTP_SENT/OTP_VERIFY, what happens if the timeout window elapses with no OTP submission (should count as a failed attempt against the OTP retry limit), and how the timeout counter resets when a new OTP is requested.
-
-Step 6: Define the LOCKED state behavior: access_granted must be forced to 0 unconditionally, and there must be no state transition out of LOCKED except via the reset input — describe how this is enforced in the next-state logic (should be the highest-priority/first-checked branch, or a state with no exit case).
-
-Step 7: Define the next-state logic and output logic (access_granted, locked_out, request_otp, fail_count) incorporating all of the above.
-
-Step 8: Write the complete, synthesizable Verilog module using behavioral style (state register + next-state combinational block + output block), synchronous active-high reset, with comments explicitly marking the retry-limit check, the timeout check, and the lockout enforcement point.
-
-Provide your step-by-step reasoning first, then the final Verilog code.
+Show your reasoning for each step before presenting the final RTL code.
