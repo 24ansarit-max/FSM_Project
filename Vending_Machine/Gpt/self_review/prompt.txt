@@ -1,1 +1,18 @@
+Step 1 — Generation:
+Generate synthesizable SystemVerilog RTL for a Vending Machine Controller FSM with states: Idle, Coin Inserted, Item Selected, Dispensing, Change Return, Out-of-Stock/Error. 
+It must handle multiple coin denominations, insufficient balance (wait for more coins), out-of-stock item rejection, and change calculation on overpayment.
 
+Step 2 — Review:
+Now review the RTL you just generated against the original specification. Explicitly check for:
+- Functional correctness (does dispensing only occur when balance >= price and stock is available?)
+- Parameterization (coin width, price width, balance width)
+- Signed/unsigned handling in balance and change arithmetic
+- Reset behavior (does reset clear balance and return to Idle?)
+- FSM completeness (are all states reachable, and is every state's exit condition defined?)
+- Corner cases (exact payment, overpayment, out-of-stock after coins inserted, coin inserted mid-dispense)
+- Synthesizability
+- Unintended latches
+- Width mismatches in arithmetic (e.g., change_amount subtraction)
+
+Step 3 — Correction:
+List every issue you identified, then provide a corrected, final version of the complete RTL that fixes all of them.
