@@ -1,0 +1,8 @@
+Design a parameterized ALU in synthesizable SystemVerilog that supports both 16-bit and 32-bit operation through a WIDTH parameter (WIDTH = 16 or 32).
+
+Requirements:
+- Inputs: operand A[WIDTH-1:0], operand B[WIDTH-1:0], opcode select, clk, reset.
+- Outputs: result[WIDTH-1:0], zero flag, carry flag, overflow flag, negative flag.
+- Operations: ADD, SUB, AND, OR, XOR, NOT, shift left, shift right (logical and arithmetic), and set-less-than (signed).
+- The design must handle signed and unsigned operands correctly, including overflow detection for signed addition/subtraction.
+- Provide the complete RTL code and explain the design, including the opcode encoding and how each flag is computed.
