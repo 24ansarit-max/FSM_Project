@@ -1,0 +1,12 @@
+Design a control-intensive, parameterized Multiply-Accumulate (MAC) unit in synthesizable SystemVerilog that supports both 8-bit and 16-bit operands through a DATA_WIDTH parameter (DATA_WIDTH = 8 or 16).
+
+The MAC must be driven by an FSM-based controller with the following states:
+Idle, Load, Multiply, Accumulate, Saturate/Overflow Check, Done.
+
+Requirements:
+- Inputs: clk, rst, start, clear_acc, operand A[DATA_WIDTH-1:0], operand B[DATA_WIDTH-1:0], signed_mode, valid_in, last (marks the final element of an accumulation sequence).
+- Outputs: acc_out[ACC_WIDTH-1:0], valid_out, done, busy, overflow flag, saturated flag.
+- ACC_WIDTH must be wide enough to accumulate many products without overflow (e.g., 2*DATA_WIDTH + guard bits), and be parameterized.
+- Support both signed and unsigned operation.
+- Handle: clearing the accumulator mid-sequence, start asserted while busy, valid_in dropping mid-sequence, and accumulator overflow (saturate instead of wrapping).
+- Provide the complete RTL code and explain the design, including the FSM state transitions and how the control logic sequences the datapath.
