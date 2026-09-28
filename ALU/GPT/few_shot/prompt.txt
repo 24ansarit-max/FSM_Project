@@ -1,0 +1,33 @@
+Here is an example of a 4-bit ALU implementation in SystemVerilog:
+
+module alu4 (
+    input  logic [3:0] a, b,
+    input  logic [1:0] op,        // 00=ADD, 01=SUB, 10=AND, 11=OR
+    output logic [3:0] y,
+    output logic       zero
+);
+    always_comb begin
+        case (op)
+            2'b00: y = a + b;
+            2'b01: y = a - b;
+            2'b10: y = a & b;
+            2'b11: y = a | b;
+            default: y = '0;
+        endcase
+    end
+    assign zero = (y == 4'b0);
+endmodule
+
+Here is an example of a parameterized adder with carry-out:
+
+module adder #(parameter WIDTH = 8) (
+    input  logic [WIDTH-1:0] a, b,
+    input  logic             cin,
+    output logic [WIDTH-1:0] sum,
+    output logic             cout
+);
+    assign {cout, sum} = a + b + cin;
+endmodule
+
+Based on these examples, generate a synthesizable, parameterized ALU (WIDTH = 16 or 32) with the following operations: ADD, SUB, AND, OR, XOR, NOT, shift left, logical shift right, arithmetic shift right, and signed set-less-than.
+Include zero, carry, overflow, and negative flags. Follow the same coding style shown above (always_comb with a default case, clear parameterization). Provide full RTL and a short explanation.
