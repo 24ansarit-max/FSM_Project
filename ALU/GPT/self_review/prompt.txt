@@ -1,0 +1,32 @@
+Step 1 — Generation:
+Design a parameterized ALU in synthesizable SystemVerilog supporting WIDTH = 16 and WIDTH = 32.
+
+Inputs: A[WIDTH-1:0], B[WIDTH-1:0], opcode, clk, reset.
+Outputs: result[WIDTH-1:0], zero, carry, overflow, negative.
+Operations: ADD, SUB, AND, OR, XOR, NOT, shift left, logical shift right, arithmetic shift right, signed set-less-than.
+
+Generate the complete RTL code for this design.
+
+Step 2 — Review:
+Now review the RTL you just generated against the original specification. Explicitly check each of the following and report any issues found:
+- Functional correctness (does every opcode produce the intended result?)
+- Parameterization (is WIDTH truly parameterized, or are 16/32-bit values hardcoded anywhere, including shift-amount width?)
+- Signed/unsigned handling (is SLT truly signed? Is arithmetic shift right sign-preserving? Are $signed casts used correctly?)
+- Reset behavior (do registered outputs and flags clear correctly on synchronous reset?)
+- Flag correctness:
+   - Carry flag on ADD vs. SUB (carry vs. borrow semantics)
+   - Signed overflow detection on ADD and SUB
+   - Zero flag computed from the final result, not an intermediate value
+   - Behavior of flags for logical operations (are carry/overflow cleared or held?)
+- Corner cases:
+   - Maximum positive + 1, and minimum negative - 1
+   - Shift amount equal to or greater than WIDTH
+   - A == B for SUB and SLT
+   - Invalid/undefined opcode
+   - All-zeros and all-ones operands
+- Synthesizability (any non-synthesizable constructs, or duplicated adders that waste resources?)
+- Unintended latches (any incomplete case/if statements in combinational blocks?)
+- Width mismatches (implicit truncation or extension in carry computation, concatenations, or shift operations?)
+
+Step 3 — Correction:
+Based on the issues identified above, provide a corrected version of the complete RTL code, with a short note summarizing what was fixed and why.
