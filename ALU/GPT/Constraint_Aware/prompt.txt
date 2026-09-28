@@ -1,0 +1,22 @@
+Generate synthesizable SystemVerilog RTL for a parameterized ALU following these exact instructions:
+
+Operations required: ADD, SUB, AND, OR, XOR, NOT, shift left, logical shift right, arithmetic shift right, signed set-less-than.
+Flags required: zero, carry, overflow, negative.
+
+Hardware/design constraints:
+- Target FPGA: AMD/Xilinx Artix-7
+- Tool: Vivado 2025.2
+- Must be synthesizable SystemVerilog
+- Parameterized with WIDTH (supports 16 and 32) and derive the shift-amount width using $clog2(WIDTH)
+- Must use synchronous reset (active-high, on clk posedge) for any registered outputs
+- Must NOT infer any latches (every case/if in combinational logic must have a default assignment)
+- Use a single shared adder/subtractor for ADD and SUB to minimize LUT usage (avoid duplicate arithmetic units)
+- Structure the adder so Vivado can map it onto the dedicated carry chain (CARRY4)
+- Minimize LUT and flip-flop usage; avoid unnecessary registers
+- Use a barrel shifter structure that maps efficiently to LUTs
+- Overflow flag must be computed correctly for signed ADD/SUB
+- Target maximum operating frequency: 100 MHz (register the result and flags in one output stage if needed to meet timing at WIDTH = 32)
+- Use enumerated opcodes (typedef enum) for readability
+- Avoid width mismatches; use explicit sizing on all constants and concatenations
+
+Provide the complete RTL code only, followed by a brief explanation of how the design achieves resource efficiency and timing closure at 100 MHz.
