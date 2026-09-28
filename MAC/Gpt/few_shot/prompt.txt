@@ -1,0 +1,101 @@
+Here is an example of a simple 4-bit multiplier with a start/done handshake FSM in SystemVerilog:
+
+module mult4_ctrl (Here is an example of a simple 4-bit multiplier with a start/done handshake FSM in SystemVerilog:
+
+module mult4_ctrl (
+    input  logic       clk, rst, start,
+    input  logic [3:0] a, b,
+    output logic [7:0] p,
+    output logic       done
+);
+    typedef enum logic [1:0] {IDLE, CALC, FINISH} state_t;
+    state_t state, next_state;
+
+    always_ff @(posedge clk) begin
+        if (rst) state <= IDLE;
+        else     state <= next_state;
+    end
+
+    always_comb begin
+        next_state = state;
+        case (state)
+            IDLE:   if (start) next_state = CALC;
+            CALC:   next_state = FINISH;
+            FINISH: next_state = IDLE;
+            default: next_state = IDLE;
+        endcase
+    end
+
+    always_ff @(posedge clk) begin
+        if (rst) begin p <= '0; done <= 1'b0; end
+        else begin
+            done <= (state == FINISH);
+            if (state == CALC) p <= a * b;
+        end
+    end
+endmodule
+
+Here is an example of a parameterized accumulator with clear and enable:
+
+module accumulator #(parameter WIDTH = 16) (
+    input  logic             clk, rst, clear, en,
+    input  logic [WIDTH-1:0] din,
+    output logic [WIDTH-1:0] acc
+);
+    always_ff @(posedge clk) begin
+        if (rst | clear) acc <= '0;
+        else if (en)     acc <= acc + din;
+    end
+endmodule
+
+Based on the FSM-controlled handshake style and the parameterized accumulator style shown in these examples, generate a synthesizable, control-intensive MAC unit parameterized for DATA_WIDTH = 8 or 16.
+
+The MAC must use an FSM with states: Idle, Load, Multiply, Accumulate, Saturate/Overflow Check, Done. It must support signed/unsigned modes, a clear_acc control, a `last` signal to end an accumulation sequence, and saturation on overflow. Follow the same coding style shown above (typedef enum FSM, separate next-state logic, default cases, clear parameterization). Provide full RTL and a short explanation.
+    input  logic       clk, rst, start,
+    input  logic [3:0] a, b,
+    output logic [7:0] p,
+    output logic       done
+);
+    typedef enum logic [1:0] {IDLE, CALC, FINISH} state_t;
+    state_t state, next_state;
+
+    always_ff @(posedge clk) begin
+        if (rst) state <= IDLE;
+        else     state <= next_state;
+    end
+
+    always_comb begin
+        next_state = state;
+        case (state)
+            IDLE:   if (start) next_state = CALC;
+            CALC:   next_state = FINISH;
+            FINISH: next_state = IDLE;
+            default: next_state = IDLE;
+        endcase
+    end
+
+    always_ff @(posedge clk) begin
+        if (rst) begin p <= '0; done <= 1'b0; end
+        else begin
+            done <= (state == FINISH);
+            if (state == CALC) p <= a * b;
+        end
+    end
+endmodule
+
+Here is an example of a parameterized accumulator with clear and enable:
+
+module accumulator #(parameter WIDTH = 16) (
+    input  logic             clk, rst, clear, en,
+    input  logic [WIDTH-1:0] din,
+    output logic [WIDTH-1:0] acc
+);
+    always_ff @(posedge clk) begin
+        if (rst | clear) acc <= '0;
+        else if (en)     acc <= acc + din;
+    end
+endmodule
+
+Based on the FSM-controlled handshake style and the parameterized accumulator style shown in these examples, generate a synthesizable, control-intensive MAC unit parameterized for DATA_WIDTH = 8 or 16.
+
+The MAC must use an FSM with states: Idle, Load, Multiply, Accumulate, Saturate/Overflow Check, Done. It must support signed/unsigned modes, a clear_acc control, a `last` signal to end an accumulation sequence, and saturation on overflow. Follow the same coding style shown above (typedef enum FSM, separate next-state logic, default cases, clear parameterization). Provide full RTL and a short explanation.
