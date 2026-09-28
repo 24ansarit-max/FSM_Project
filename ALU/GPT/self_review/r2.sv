@@ -15,6 +15,17 @@ module parameterized_alu #(
     output logic             negative
 );
 
+    //============================================================
+    // Parameter validation
+    //============================================================
+    initial begin
+        if ((WIDTH != 16) && (WIDTH != 32))
+            $error("parameterized_alu: WIDTH must be 16 or 32");
+    end
+
+    //============================================================
+    // Opcode definitions
+    //============================================================
     typedef enum logic [3:0] {
         OP_ADD = 4'b0000,
         OP_SUB = 4'b0001,
@@ -30,47 +41,64 @@ module parameterized_alu #(
 
     alu_op_t op;
 
+    //============================================================
+    // Shift parameterization
+    // WIDTH = 16 -> SHIFT_WIDTH = 4
+    // WIDTH = 32 -> SHIFT_WIDTH = 5
+    //============================================================
     localparam int SHIFT_WIDTH = $clog2(WIDTH);
+
+    // Explicit WIDTH-sized shift-limit constant
+    localparam logic [WIDTH-1:0] SHIFT_LIMIT = WIDTH'(WIDTH);
 
     logic [SHIFT_WIDTH-1:0] shift_amount;
 
+    assign op           = alu_op_t'(opcode);
+    assign shift_amount = B[SHIFT_WIDTH-1:0];
+
+    //============================================================
+    // Shared ADD/SUB datapath
+    //
+    // ADD: A + B
+    // SUB: A + ~B + 1
+    //============================================================
     logic             subtract;
     logic [WIDTH-1:0] B_modified;
     logic [WIDTH:0]   addsub_result;
 
+    assign subtract = (op == OP_SUB);
+
+    assign B_modified = B ^ {WIDTH{subtract}};
+
+    assign addsub_result =
+        {1'b0, A} +
+        {1'b0, B_modified} +
+        {{WIDTH{1'b0}}, subtract};
+
+    //============================================================
+    // Combinational next-state signals
+    //============================================================
     logic [WIDTH-1:0] result_next;
     logic             zero_next;
     logic             carry_next;
     logic             overflow_next;
     logic             negative_next;
 
-    assign op = alu_op_t'(opcode);
-
-    assign shift_amount = B[SHIFT_WIDTH-1:0];
-
-    // Shared ADD/SUB datapath
-    assign subtract = (op == OP_SUB);
-
-    // ADD: B
-    // SUB: ~B
-    assign B_modified = B ^ {WIDTH{subtract}};
-
-    // ADD: A + B + 0
-    // SUB: A + ~B + 1
-    assign addsub_result =
-        {1'b0, A}
-        + {1'b0, B_modified}
-        + {{WIDTH{1'b0}}, subtract};
-
+    //============================================================
+    // ALU combinational datapath
+    //============================================================
     always_comb begin
 
-        // Defaults
+        // Default assignments
         result_next   = {WIDTH{1'b0}};
         carry_next    = 1'b0;
         overflow_next = 1'b0;
 
         case (op)
 
+            //====================================================
+            // ADD
+            //====================================================
             OP_ADD: begin
                 result_next = addsub_result[WIDTH-1:0];
                 carry_next  = addsub_result[WIDTH];
@@ -80,11 +108,14 @@ module parameterized_alu #(
                     (result_next[WIDTH-1] ^ A[WIDTH-1]);
             end
 
+            //====================================================
+            // SUB
+            //====================================================
             OP_SUB: begin
                 result_next = addsub_result[WIDTH-1:0];
 
-                // Carry = 1: no unsigned borrow
-                // Carry = 0: unsigned borrow
+                // Carry = 1 -> no unsigned borrow
+                // Carry = 0 -> unsigned borrow
                 carry_next = addsub_result[WIDTH];
 
                 overflow_next =
@@ -92,43 +123,67 @@ module parameterized_alu #(
                     (result_next[WIDTH-1] ^ A[WIDTH-1]);
             end
 
+            //====================================================
+            // AND
+            //====================================================
             OP_AND: begin
                 result_next = A & B;
             end
 
+            //====================================================
+            // OR
+            //====================================================
             OP_OR: begin
                 result_next = A | B;
             end
 
+            //====================================================
+            // XOR
+            //====================================================
             OP_XOR: begin
                 result_next = A ^ B;
             end
 
+            //====================================================
+            // NOT
+            //====================================================
             OP_NOT: begin
                 result_next = ~A;
             end
 
+            //====================================================
+            // Shift Left Logical
+            //====================================================
             OP_SLL: begin
-                if (B >= WIDTH)
+                if (B >= SHIFT_LIMIT)
                     result_next = {WIDTH{1'b0}};
                 else
                     result_next = A << shift_amount;
             end
 
+            //====================================================
+            // Logical Shift Right
+            //====================================================
             OP_SRL: begin
-                if (B >= WIDTH)
+                if (B >= SHIFT_LIMIT)
                     result_next = {WIDTH{1'b0}};
                 else
                     result_next = A >> shift_amount;
             end
 
+            //====================================================
+            // Arithmetic Shift Right
+            //====================================================
             OP_SRA: begin
-                if (B >= WIDTH)
+                if (B >= SHIFT_LIMIT)
                     result_next = {WIDTH{A[WIDTH-1]}};
                 else
                     result_next = $signed(A) >>> shift_amount;
             end
 
+            //====================================================
+            // Signed Set-Less-Than
+            //====================================================
             OP_SLT: begin
                 if ($signed(A) < $signed(B))
                     result_next = {{(WIDTH-1){1'b0}}, 1'b1};
@@ -136,6 +191,9 @@ module parameterized_alu #(
                     result_next = {WIDTH{1'b0}};
             end
 
+            //====================================================
+            // Undefined opcode
+            //====================================================
             default: begin
                 result_next   = {WIDTH{1'b0}};
                 carry_next    = 1'b0;
@@ -144,13 +202,18 @@ module parameterized_alu #(
 
         endcase
 
+        // Flags based on final result
         zero_next     = (result_next == {WIDTH{1'b0}});
         negative_next = result_next[WIDTH-1];
 
     end
 
+    //============================================================
+    // Registered output stage
     // Synchronous active-high reset
+    //============================================================
     always_ff @(posedge clk) begin
+
         if (reset) begin
             result   <= {WIDTH{1'b0}};
             zero     <= 1'b1;
@@ -165,6 +228,7 @@ module parameterized_alu #(
             overflow <= overflow_next;
             negative <= negative_next;
         end
+
     end
 
 endmodule
