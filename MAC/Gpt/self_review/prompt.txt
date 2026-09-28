@@ -1,0 +1,31 @@
+Step 1 — Generation:
+Design a control-intensive, parameterized MAC unit in synthesizable SystemVerilog supporting DATA_WIDTH = 8 and DATA_WIDTH = 16, driven by an FSM with states: Idle, Load, Multiply, Accumulate, Saturate/Overflow Check, Done.
+
+Inputs: clk, rst, start, clear_acc, A[DATA_WIDTH-1:0], B[DATA_WIDTH-1:0], signed_mode, valid_in, last.
+Outputs: acc_out[ACC_WIDTH-1:0], valid_out, done, busy, overflow, saturated.
+
+Generate the complete RTL code for this design.
+
+Step 2 — Review:
+Now review the RTL you just generated against the original specification. Explicitly check each of the following and report any issues found:
+- Functional correctness (does the FSM sequence Load -> Multiply -> Accumulate -> Saturate Check -> Done correctly, and does the accumulator equal the sum of all products at the end of a sequence?)
+- Parameterization (is DATA_WIDTH truly parameterized? Is ACC_WIDTH derived correctly, or are 8/16-bit values hardcoded anywhere?)
+- Signed/unsigned handling (is the product sign-extended correctly before accumulation? Is signed_mode applied consistently to multiplier and accumulator? Are $signed casts used correctly?)
+- Reset behavior (does synchronous reset return the FSM to Idle and clear the accumulator, flags, and handshake outputs?)
+- FSM completeness (are all six states reachable? Is there a defined exit from every state? Any deadlock if `last` or valid_in never arrives?)
+- Corner cases:
+   - start asserted while busy
+   - valid_in deasserted mid-sequence
+   - clear_acc asserted during Accumulate or Multiply
+   - Positive and negative saturation in signed mode; carry-out in unsigned mode
+   - Most negative value times most negative value (e.g., -128 x -128, -32768 x -32768)
+   - `last` asserted on the first operand pair
+   - Back-to-back sequences with no idle cycle
+   - signed_mode toggled mid-sequence
+- Handshake correctness (are done, busy, and valid_out registered, one-cycle-pulse where intended, and never asserted simultaneously in an inconsistent way?)
+- Synthesizability (any non-synthesizable constructs, or multiple multipliers/adders that waste resources or block DSP inference?)
+- Unintended latches (any incomplete if/case statements in combinational blocks?)
+- Width mismatches (implicit truncation or extension in the product, accumulator, guard bits, and saturation comparison constants?)
+
+Step 3 — Correction:
+Based on the issues identified above, provide a corrected version of the complete RTL code, with a short note summarizing what was fixed and why.
