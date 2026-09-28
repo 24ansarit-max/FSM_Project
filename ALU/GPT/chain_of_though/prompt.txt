@@ -1,0 +1,15 @@
+I want you to design a parameterized ALU (WIDTH = 16 or 32) in synthesizable SystemVerilog.
+Before writing any RTL, think through the design step by step:
+
+1. Identify all inputs and outputs (operands A and B, opcode, result, zero/carry/overflow/negative flags, shift amount, optional clk/reset if the output is registered).
+2. Define the required operations: ADD, SUB, AND, OR, XOR, NOT, shift left, logical shift right, arithmetic shift right, signed set-less-than. Assign a binary opcode to each.
+3. Define the datapath for each operation:
+   - Operand widths and the extra bit needed to capture carry-out
+   - Signed vs. unsigned interpretation for each operation
+   - How subtraction is implemented (A + ~B + 1) and how this affects the carry flag
+   - How the shift amount is derived (log2(WIDTH) bits) and how arithmetic shift preserves the sign
+4. Identify corner cases: signed overflow on ADD/SUB (sign-bit analysis), carry vs. borrow semantics on SUB, shift amount >= WIDTH, SLT when operands have different signs, zero result with carry set, and an undefined opcode.
+5. Define reset behavior (if the result/flags are registered) and the default output for an invalid opcode.
+6. Only after completing the above steps, generate the synthesizable SystemVerilog RTL implementing this ALU.
+
+Show your reasoning for each step before presenting the final RTL code.
