@@ -1,0 +1,16 @@
+I want you to design a control-intensive, parameterized MAC unit (DATA_WIDTH = 8 or 16) in synthesizable SystemVerilog.
+Before writing any RTL, think through the design step by step:
+
+1. Identify all inputs and outputs (operands A and B, start, valid_in, last, clear_acc, signed_mode, accumulator output, valid_out, done, busy, overflow, saturated).
+2. Define the FSM states: Idle, Load, Multiply, Accumulate, Saturate/Overflow Check, Done.
+3. Define the state transition conditions and the control signals asserted in each state:
+   - What triggers Idle -> Load, and what is latched in Load?
+   - How does the FSM move Multiply -> Accumulate -> Saturate/Overflow Check?
+   - When does the FSM loop back for the next operand pair versus proceed to Done (use of `last`)?
+   - What does each state drive (register enables, accumulator clear, valid_out, busy, done)?
+4. Define the datapath: product width (2*DATA_WIDTH), accumulator width (with guard bits), signed vs. unsigned multiplication, sign extension of the product before accumulation, and how overflow is detected for signed and unsigned modes.
+5. Identify corner cases: start asserted while busy, valid_in deasserted mid-sequence, clear_acc asserted during Accumulate, accumulator overflow in both directions (positive and negative saturation), signed_mode changed mid-sequence, `last` asserted on the very first operand, multiplying the most negative value by itself (e.g., -128 x -128), and back-to-back sequences with no idle cycle.
+6. Define reset behavior (synchronous reset, return to Idle, clear accumulator and all flags).
+7. Only after completing the above steps, generate the synthesizable SystemVerilog RTL implementing this MAC.
+
+Show your reasoning for each step before presenting the final RTL code.
