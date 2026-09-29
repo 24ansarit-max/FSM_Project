@@ -1,29 +1,30 @@
 `timescale 1ns/1ps
 
 module sync_fifo #(
-    parameter int unsigned DATA_WIDTH             = 8,
-    parameter int unsigned DEPTH                  = 16,
-    parameter int unsigned ALMOST_FULL_THRESHOLD  = DEPTH - 1,
+    parameter int unsigned DATA_WIDTH = 8,
+    parameter int unsigned DEPTH = 16,
+    parameter int unsigned ALMOST_FULL_THRESHOLD = DEPTH - 1,
     parameter int unsigned ALMOST_EMPTY_THRESHOLD = 1
 )(
-    input  logic                         clk,
-    input  logic                         rst,
+    input  logic clk,
+    input  logic rst,
 
-    input  logic                         wr_en,
-    input  logic [DATA_WIDTH-1:0]        wr_data,
+    input  logic wr_en,
+    input  logic [DATA_WIDTH-1:0] wr_data,
 
-    input  logic                         rd_en,
-    output logic [DATA_WIDTH-1:0]        rd_data,
+    input  logic rd_en,
+    output logic [DATA_WIDTH-1:0] rd_data,
 
-    output logic                         full,
-    output logic                         empty,
-    output logic                         almost_full,
-    output logic                         almost_empty,
+    output logic full,
+    output logic empty,
+    output logic almost_full,
+    output logic almost_empty,
 
-    output logic [$clog2(DEPTH+1)-1:0]   fifo_count,
+    // Protected against zero-width vector when DEPTH = 1
+    output logic [(DEPTH <= 1 ? 1 : $clog2(DEPTH + 1))-1:0] fifo_count,
 
-    output logic                         overflow_flag,
-    output logic                         underflow_flag
+    output logic overflow_flag,
+    output logic underflow_flag
 );
 
     //============================================================
@@ -45,7 +46,7 @@ module sync_fifo #(
 
 
     //============================================================
-    // Read and write pointers
+    // Read / write pointers
     //============================================================
 
     logic [PTR_WIDTH-1:0] wr_ptr;
@@ -53,7 +54,7 @@ module sync_fifo #(
 
 
     //============================================================
-    // Internal valid-operation signals
+    // Valid operation signals
     //============================================================
 
     logic write_valid;
@@ -61,14 +62,14 @@ module sync_fifo #(
 
 
     //============================================================
-    // FIFO status
+    // FIFO status flags
     //============================================================
 
     always_comb begin
 
-        empty = (fifo_count == 0);
-
         full = (fifo_count == DEPTH);
+
+        empty = (fifo_count == 0);
 
         almost_full =
             (fifo_count >= ALMOST_FULL_THRESHOLD);
@@ -126,10 +127,9 @@ module sync_fifo #(
         else begin
 
             //----------------------------------------------------
-            // Overflow / underflow indication
+            // Overflow / underflow event flags
             //
-            // These flags indicate an invalid request during
-            // the current clock cycle.
+            // These indicate an invalid request in this cycle.
             //----------------------------------------------------
 
             overflow_flag <= wr_en && full;
@@ -145,10 +145,7 @@ module sync_fifo #(
 
                 memory[wr_ptr] <= wr_data;
 
-                //------------------------------------------------
-                // Explicit pointer wrap-around
-                //------------------------------------------------
-
+                // Explicit wrap-around
                 if (wr_ptr == DEPTH - 1) begin
                     wr_ptr <= '0;
                 end
@@ -165,16 +162,10 @@ module sync_fifo #(
 
             if (read_valid) begin
 
-                //------------------------------------------------
-                // Registered read
-                //------------------------------------------------
-
+                // Registered read data
                 rd_data <= memory[rd_ptr];
 
-                //------------------------------------------------
-                // Explicit pointer wrap-around
-                //------------------------------------------------
-
+                // Explicit wrap-around
                 if (rd_ptr == DEPTH - 1) begin
                     rd_ptr <= '0;
                 end
@@ -201,7 +192,8 @@ module sync_fifo #(
                     fifo_count <= fifo_count - 1'b1;
                 end
 
-                // Simultaneous valid read and write
+                // Both accepted:
+                // one enters and one leaves
                 2'b11: begin
                     fifo_count <= fifo_count;
                 end
