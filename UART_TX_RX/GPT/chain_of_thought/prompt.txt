@@ -1,0 +1,15 @@
+I want you to design a parameterized UART controller (transmitter + receiver) in synthesizable SystemVerilog.
+Before writing any RTL, think through the design step by step:
+
+1. Identify all inputs and outputs (clk, rst, tx_start, tx_data, rx_serial_in, tx_serial_out, tx_busy, tx_done, rx_data, rx_valid, framing_error, parity_error, overrun_error) and the parameters (CLK_FREQ_HZ, BAUD_RATE, DATA_BITS, PARITY_MODE, STOP_BITS).
+2. Define the frame format: idle-high line, 1 start bit (low), DATA_BITS data bits sent LSB first, optional parity bit, 1 or 2 stop bits (high).
+3. Define the baud timing: the divider value for the TX baud tick, the oversampling rate for the receiver (e.g., 16x), the counter widths using $clog2, and the rounding error for a given CLK_FREQ_HZ / BAUD_RATE.
+4. Define the TX FSM states (Idle, Start, Data, Parity, Stop, Done) and RX FSM states (Idle, Start Detect, Data, Parity, Stop, Error/Done), including:
+   - The transition conditions and what each state drives
+   - How the parity bit is computed for even/odd modes
+   - How the RX synchronizes the asynchronous input and samples at bit midpoints
+5. Identify corner cases: glitch on the line that looks like a start bit (re-verify at midpoint), tx_start asserted while busy, stop bit sampled low (framing error), parity mismatch, new byte received before rx_data is read (overrun), line held low continuously (break condition), back-to-back frames with no idle gap, PARITY_MODE = none skipping the Parity state, and STOP_BITS = 2.
+6. Define reset behavior (synchronous reset, both FSMs to Idle, tx_serial_out high, all error flags and counters cleared).
+7. Only after completing the above steps, generate the synthesizable SystemVerilog RTL implementing this UART.
+
+Show your reasoning for each step before presenting the final RTL code.
