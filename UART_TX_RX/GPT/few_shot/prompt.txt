@@ -1,0 +1,60 @@
+Here is an example of a simple baud-tick generator in SystemVerilog:
+
+module baud_gen #(parameter DIV = 868) (
+    input  logic clk, rst,
+    output logic tick
+);
+    logic [$clog2(DIV)-1:0] cnt;
+    always_ff @(posedge clk) begin
+        if (rst) begin cnt <= '0; tick <= 1'b0; end
+        else if (cnt == DIV-1) begin cnt <= '0; tick <= 1'b1; end
+        else begin cnt <= cnt + 1'b1; tick <= 1'b0; end
+    end
+endmodule
+
+Here is an example of a simple UART transmitter FSM:
+
+module uart_tx_simple (
+    input  logic       clk, rst, tick, start,
+    input  logic [7:0] data,
+    output logic       txd, busy, done
+);
+    typedef enum logic [1:0] {IDLE, STARTB, DATAB, STOPB} state_t;
+    state_t state, next_state;
+    logic [2:0] bit_idx;
+    logic [7:0] shreg;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin state <= IDLE; bit_idx <= '0; shreg <= '0; end
+        else begin
+            state <= next_state;
+            if (state == IDLE && start) shreg <= data;
+            if (state == DATAB && tick) begin
+                shreg   <= {1'b0, shreg[7:1]};
+                bit_idx <= bit_idx + 1'b1;
+            end
+        end
+    end
+
+    always_comb begin
+        next_state = state;
+        txd  = 1'b1;
+        busy = (state != IDLE);
+        done = 1'b0;
+        case (state)
+            IDLE:   if (start) next_state = STARTB;
+            STARTB: begin txd = 1'b0; if (tick) next_state = DATAB; end
+            DATAB:  begin txd = shreg[0]; if (tick && bit_idx == 3'd7) next_state = STOPB; end
+            STOPB:  if (tick) begin next_state = IDLE; done = 1'b1; end
+            default: next_state = IDLE;
+        endcase
+    end
+endmodule
+
+Based on the baud-generator and FSM coding style shown in these examples, generate a synthesizable, parameterized UART Transmitter AND Receiver pair in SystemVerilog.
+
+TX FSM states: Idle, Start, Data, Parity, Stop, Done. RX FSM states: Idle, Start Detect, Data, Parity, Stop, Error/Done.
+Parameters: CLK_FREQ_HZ, BAUD_RATE, DATA_BITS, PARITY_MODE, STOP_BITS.
+The RX must oversample the incoming line (e.g., 16x) and detect the start bit at its midpoint, and must report framing_error, parity_error, and overrun_error.
+
+Follow the same coding style shown above (typedef enum FSM, separate next-state logic, default cases, parameterized counters). Provide full RTL for TX, RX, and baud generator, plus a short explanation.
