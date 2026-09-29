@@ -1,0 +1,31 @@
+Step 1 — Generation:
+Design a parameterized SPI Master controller in synthesizable SystemVerilog, driven by an FSM with states: Idle, Assert CS, Shift, Deassert CS, Done.
+
+Parameters: DATA_WIDTH (8/16/32), CLK_DIV, CPOL, CPHA.
+Inputs: clk, rst, start, tx_data, miso.
+Outputs: sclk, mosi, cs_n, rx_data, busy, done.
+
+Generate the complete RTL code for this design.
+
+Step 2 — Review:
+Now review the RTL you just generated against the original specification. Explicitly check each of the following and report any issues found:
+- Functional correctness (does sclk toggle at the correct rate per CLK_DIV? Does mosi/miso align correctly with sclk edges for the configured CPOL/CPHA?)
+- Parameterization (is DATA_WIDTH truly parameterized in the shift register and bit counter? Is CLK_DIV used without hardcoded values?)
+- CPOL/CPHA correctness (are all 4 modes implemented correctly — check drive edge vs. sample edge for each combination, not just Mode 0)
+- Signed/unsigned handling (not typically applicable, but check bit counter and shift register for any incorrect sign extension)
+- Reset behavior (does synchronous reset return sclk to the correct CPOL idle level, cs_n to deasserted, and FSM to Idle?)
+- FSM completeness (are all five states reachable? Is there a clean transition from Deassert CS to Done to Idle, with cs_n timing correctly respected?)
+- Corner cases:
+   - start asserted while busy
+   - CLK_DIV = 1 (fastest sclk)
+   - DATA_WIDTH = 16 or 32 instead of 8
+   - cs_n setup/hold time relative to first and last sclk transition
+   - Back-to-back transactions with no idle gap between them
+- Metastability (is miso synchronized with at least 2 flip-flops before being sampled?)
+- Handshake correctness (is done a single-cycle pulse? Is busy asserted for the entire transaction including CS assertion/deassertion?)
+- Synthesizability (any non-synthesizable constructs, or duplicated shift registers for TX/RX that waste resources?)
+- Unintended latches (any incomplete if/case statements in combinational blocks?)
+- Width mismatches (bit counter width vs. DATA_WIDTH, shift register indexing, CLK_DIV counter width?)
+
+Step 3 — Correction:
+Based on the issues identified above, provide a corrected version of the complete RTL code, with a short note summarizing what was fixed and why.
