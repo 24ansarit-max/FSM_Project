@@ -1,0 +1,15 @@
+I want you to design a parameterized SPI Master controller in synthesizable SystemVerilog.
+Before writing any RTL, think through the design step by step:
+
+1. Identify all inputs and outputs (clk, rst, start, tx_data, miso, sclk, mosi, cs_n, rx_data, busy, done) and parameters (DATA_WIDTH, CLK_DIV, CPOL, CPHA).
+2. Define the FSM states: Idle, Assert CS, Shift, Deassert CS, Done, and what each state drives (cs_n level, sclk toggling, shift enable).
+3. Define how CPOL and CPHA affect behavior:
+   - CPOL: idle level of sclk (0 or 1)
+   - CPHA: whether data is driven on the first or second clock edge, and sampled on the opposite edge
+   - Derive the four mode combinations (Mode 0-3) as specific edge conditions for "drive mosi" vs "sample miso"
+4. Define the datapath: shift register width (DATA_WIDTH), bit counter, sclk generation via CLK_DIV, and how tx_data is loaded and rx_data is assembled bit-by-bit.
+5. Identify corner cases: start asserted while busy, cs_n timing relative to the first and last sclk edge (setup/hold), DATA_WIDTH values other than 8 (16/32), CLK_DIV = 1 (fastest possible sclk), and switching CPOL/CPHA between transactions.
+6. Define reset behavior (synchronous reset, cs_n deasserted/high, sclk at idle level per CPOL, FSM to Idle).
+7. Only after completing the above steps, generate the synthesizable SystemVerilog RTL implementing this SPI Master.
+
+Show your reasoning for each step before presenting the final RTL code.
