@@ -1,0 +1,15 @@
+I want you to design a parameterized synchronous FIFO controller in synthesizable SystemVerilog.
+Before writing any RTL, think through the design step by step:
+
+1. Identify all inputs and outputs (clk, rst, wr_en, wr_data, rd_en, rd_data, full, empty, almost_full, almost_empty, fifo_count, overflow_flag, underflow_flag) and parameters (DATA_WIDTH, DEPTH, ALMOST_FULL_THRESHOLD, ALMOST_EMPTY_THRESHOLD).
+2. Define the storage structure: memory array of size DEPTH, write pointer, read pointer, and how pointer width relates to $clog2(DEPTH).
+3. Define how full and empty are distinguished, since both occur when wr_ptr == rd_ptr:
+   - Option A: extra MSB on each pointer (wrap bit) compared to detect full vs. empty
+   - Option B: explicit up/down fifo_count register
+   - Decide and justify one approach, and define full = (fifo_count == DEPTH), empty = (fifo_count == 0), almost_full = (fifo_count >= ALMOST_FULL_THRESHOLD), almost_empty = (fifo_count <= ALMOST_EMPTY_THRESHOLD).
+4. Define pointer update logic: increment write pointer on a valid write (wr_en && !full), increment read pointer on a valid read (rd_en && !empty), and wrap-around behavior at DEPTH-1 -> 0.
+5. Identify corner cases: simultaneous wr_en and rd_en (same cycle) when FIFO is empty, full, or neither; write attempted while full (must not corrupt memory or wrap the pointer); read attempted while empty (must not return stale/garbage as valid); DEPTH = 1 edge case; fifo_count update timing relative to read-data availability (read latency of 0 or 1 cycle).
+6. Define reset behavior (synchronous reset, pointers and count cleared, empty asserted, full deasserted).
+7. Only after completing the above steps, generate the synthesizable SystemVerilog RTL implementing this FIFO controller.
+
+Show your reasoning for each step before presenting the final RTL code.
