@@ -1,1 +1,55 @@
 
+Here is an example of a simple SPI clock divider in SystemVerilog:
+
+module spi_clk_gen #(parameter DIV = 4) (
+    input  logic clk, rst, enable,
+    output logic sclk
+);
+    logic [$clog2(DIV)-1:0] cnt;
+    always_ff @(posedge clk) begin
+        if (rst || !enable) begin cnt <= '0; sclk <= 1'b0; end
+        else if (cnt == DIV-1) begin cnt <= '0; sclk <= ~sclk; end
+        else cnt <= cnt + 1'b1;
+    end
+endmodule
+
+Here is an example of a simple shift-register-based transmitter FSM:
+
+module shift_tx (
+    input  logic       clk, rst, start, shift_en,
+    input  logic [7:0] data,
+    output logic       serial_out, busy
+);
+    typedef enum logic [1:0] {IDLE, LOAD, SHIFT} state_t;
+    state_t state, next_state;
+    logic [7:0] shreg;
+    logic [2:0] bit_cnt;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin state <= IDLE; shreg <= '0; bit_cnt <= '0; end
+        else begin
+            state <= next_state;
+            if (state == IDLE && start) shreg <= data;
+            if (state == SHIFT && shift_en) begin
+                shreg   <= {shreg[6:0], 1'b0};
+                bit_cnt <= bit_cnt + 1'b1;
+            end
+        end
+    end
+
+    always_comb begin
+        next_state = state;
+        serial_out = shreg[7];
+        busy = (state != IDLE);
+        case (state)
+            IDLE: if (start) next_state = LOAD;
+            LOAD: next_state = SHIFT;
+            SHIFT: if (bit_cnt == 3'd7 && shift_en) next_state = IDLE;
+            default: next_state = IDLE;
+        endcase
+    end
+endmodule
+
+Based on the clock-divider and shift-register FSM style shown in these examples, generate a synthesizable, parameterized SPI Master controller in SystemVerilog.
+
+FSM states: Idle, Assert CS, Shift, Deassert CS, Done. Parameters: DATA_WIDTH, CLK_DIV, CPOL, CPHA. It must generate sclk internally, shift mosi out and sample miso in, and correctly implement all four CPOL/CPHA mode combinations. Follow the same coding style shown above (typedef enum FSM, parameterized clock divider, shift register with bit counter). Provide full RTL and a short explanation.
