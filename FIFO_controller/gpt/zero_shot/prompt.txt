@@ -1,0 +1,9 @@
+Design a parameterized synchronous FIFO controller in synthesizable SystemVerilog.
+
+Requirements:
+- Parameters: DATA_WIDTH, DEPTH (must be a power of 2), ALMOST_FULL_THRESHOLD, ALMOST_EMPTY_THRESHOLD.
+- Inputs: clk, rst, wr_en, wr_data[DATA_WIDTH-1:0], rd_en.
+- Outputs: rd_data[DATA_WIDTH-1:0], full, empty, almost_full, almost_empty, fifo_count, overflow_flag, underflow_flag.
+- Use a memory array with read/write pointers, and correctly generate full/empty flags using pointer comparison (including the extra MSB technique or an explicit count register to distinguish full from empty).
+- Handle simultaneous read and write in the same cycle, write attempted when full (overflow), and read attempted when empty (underflow) — these must not corrupt FIFO state.
+- Provide the complete RTL code and explain the design, including how the pointers and flags are generated.
