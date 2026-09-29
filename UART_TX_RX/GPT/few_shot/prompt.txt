@@ -12,14 +12,14 @@ module baud_gen #(parameter DIV = 868) (
     end
 endmodule
 
-Here is an example of a simple UART transmitter FSM:
+Here is an example of a simple serial transmitter FSM:
 
-module uart_tx_simple (
+module ser_tx (
     input  logic       clk, rst, tick, start,
     input  logic [7:0] data,
-    output logic       txd, busy, done
+    output logic       txd, busy
 );
-    typedef enum logic [1:0] {IDLE, STARTB, DATAB, STOPB} state_t;
+    typedef enum logic [1:0] {IDLE, START, DATA, STOP} state_t;
     state_t state, next_state;
     logic [2:0] bit_idx;
     logic [7:0] shreg;
@@ -29,10 +29,11 @@ module uart_tx_simple (
         else begin
             state <= next_state;
             if (state == IDLE && start) shreg <= data;
-            if (state == DATAB && tick) begin
+            if (state == DATA && tick) begin
                 shreg   <= {1'b0, shreg[7:1]};
                 bit_idx <= bit_idx + 1'b1;
             end
+            if (state != DATA) bit_idx <= '0;
         end
     end
 
@@ -40,21 +41,20 @@ module uart_tx_simple (
         next_state = state;
         txd  = 1'b1;
         busy = (state != IDLE);
-        done = 1'b0;
         case (state)
-            IDLE:   if (start) next_state = STARTB;
-            STARTB: begin txd = 1'b0; if (tick) next_state = DATAB; end
-            DATAB:  begin txd = shreg[0]; if (tick && bit_idx == 3'd7) next_state = STOPB; end
-            STOPB:  if (tick) begin next_state = IDLE; done = 1'b1; end
+            IDLE:  if (start) next_state = START;
+            START: begin txd = 1'b0; if (tick) next_state = DATA; end
+            DATA:  begin txd = shreg[0]; if (tick && bit_idx == 3'd7) next_state = STOP; end
+            STOP:  if (tick) next_state = IDLE;
             default: next_state = IDLE;
         endcase
     end
 endmodule
 
-Based on the baud-generator and FSM coding style shown in these examples, generate a synthesizable, parameterized UART Transmitter AND Receiver pair in SystemVerilog.
+Based on the baud-generator and FSM coding style shown in these examples, generate a synthesizable, parameterized UART controller (transmitter + receiver) in SystemVerilog.
 
-TX FSM states: Idle, Start, Data, Parity, Stop, Done. RX FSM states: Idle, Start Detect, Data, Parity, Stop, Error/Done.
-Parameters: CLK_FREQ_HZ, BAUD_RATE, DATA_BITS, PARITY_MODE, STOP_BITS.
-The RX must oversample the incoming line (e.g., 16x) and detect the start bit at its midpoint, and must report framing_error, parity_error, and overrun_error.
+Parameters: CLK_FREQ_HZ, BAUD_RATE, DATA_BITS (7 or 8), PARITY_MODE (none/even/odd), STOP_BITS (1 or 2).
+TX states: Idle, Start, Data, Parity, Stop, Done. RX states: Idle, Start Detect, Data, Parity, Stop, Error/Done.
+Outputs must include tx_serial_out, tx_busy, tx_done, rx_data, rx_valid, framing_error, parity_error, overrun_error.
 
-Follow the same coding style shown above (typedef enum FSM, separate next-state logic, default cases, parameterized counters). Provide full RTL for TX, RX, and baud generator, plus a short explanation.
+Follow the same coding style shown above (typedef enum FSM, separate next-state logic, default cases, parameterized counters). Provide full RTL and a short explanation.
