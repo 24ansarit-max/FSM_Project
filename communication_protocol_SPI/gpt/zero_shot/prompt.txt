@@ -1,9 +1,0 @@
-Design a parameterized SPI Master controller in synthesizable SystemVerilog, driven by an FSM with states: Idle, Assert CS, Shift, Deassert CS, Done.
-
-Requirements:
-- Parameters: DATA_WIDTH (8/16/32), CLK_DIV (SPI clock divider from system clock), CPOL, CPHA (SPI mode 0-3).
-- Inputs: clk, rst, start, tx_data[DATA_WIDTH-1:0], miso.
-- Outputs: sclk, mosi, cs_n, rx_data[DATA_WIDTH-1:0], busy, done.
-- The controller must generate the SPI clock (sclk) internally based on CLK_DIV, and shift data out on mosi while simultaneously capturing miso, with correct edge behavior for all four CPOL/CPHA combinations.
-- Handle: start asserted while busy, cs_n must stay asserted for the entire transaction and deassert only after the last bit, and the ability to change DATA_WIDTH via parameter.
-- Provide the complete RTL code and explain the design, including the FSM states and how CPOL/CPHA determine the sampling/shifting edges.
