@@ -1,5 +1,242 @@
 `timescale 1ns/1ps
 
+//==============================================================
+// BAUD RATE GENERATOR
+//==============================================================
+module uart_baud_gen #(
+    parameter int unsigned CLK_FREQ_HZ = 100_000_000,
+    parameter int unsigned BAUD_RATE   = 115_200,
+    parameter int unsigned OVERSAMPLE  = 1
+)(
+    input  logic clk,
+    input  logic rst,
+    output logic tick
+);
+
+    localparam int unsigned DIV =
+        (CLK_FREQ_HZ / (BAUD_RATE * OVERSAMPLE)) < 1
+        ? 1
+        : (CLK_FREQ_HZ / (BAUD_RATE * OVERSAMPLE));
+
+    localparam int unsigned CNT_WIDTH =
+        (DIV <= 1) ? 1 : $clog2(DIV);
+
+    logic [CNT_WIDTH-1:0] cnt;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            cnt  <= '0;
+            tick <= 1'b0;
+        end
+        else if (cnt == DIV-1) begin
+            cnt  <= '0;
+            tick <= 1'b1;
+        end
+        else begin
+            cnt  <= cnt + 1'b1;
+            tick <= 1'b0;
+        end
+    end
+
+endmodule
+
+
+//==============================================================
+// UART TRANSMITTER
+//==============================================================
+module uart_tx #(
+    parameter int unsigned CLK_FREQ_HZ = 100_000_000,
+    parameter int unsigned BAUD_RATE   = 115_200,
+    parameter int unsigned DATA_BITS   = 8,
+    parameter string       PARITY_MODE = "none",
+    parameter int unsigned STOP_BITS   = 1
+)(
+    input  logic                 clk,
+    input  logic                 rst,
+    input  logic                 tx_start,
+    input  logic [DATA_BITS-1:0] tx_data,
+
+    output logic                 tx_serial_out,
+    output logic                 tx_busy,
+    output logic                 tx_done
+);
+
+    //==========================================================
+    // Baud generator: 1 tick per UART bit
+    //==========================================================
+
+    logic baud_tick;
+
+    uart_baud_gen #(
+        .CLK_FREQ_HZ(CLK_FREQ_HZ),
+        .BAUD_RATE  (BAUD_RATE),
+        .OVERSAMPLE (1)
+    ) baud_gen (
+        .clk  (clk),
+        .rst  (rst),
+        .tick (baud_tick)
+    );
+
+    //==========================================================
+    // TX FSM
+    //==========================================================
+
+    typedef enum logic [2:0] {
+        IDLE,
+        START,
+        DATA,
+        PARITY,
+        STOP,
+        DONE
+    } tx_state_t;
+
+    tx_state_t state, next_state;
+
+    //==========================================================
+    // TX registers
+    //==========================================================
+
+    logic [DATA_BITS-1:0] shreg;
+    logic parity_bit;
+
+    localparam int BIT_WIDTH =
+        (DATA_BITS <= 1) ? 1 : $clog2(DATA_BITS);
+
+    localparam int STOP_WIDTH =
+        (STOP_BITS <= 1) ? 1 : $clog2(STOP_BITS);
+
+    logic [BIT_WIDTH-1:0]  bit_idx;
+    logic [STOP_WIDTH-1:0] stop_idx;
+
+    //==========================================================
+    // Sequential logic
+    //==========================================================
+
+    always_ff @(posedge clk) begin
+
+        if (rst) begin
+            state      <= IDLE;
+            shreg      <= '0;
+            parity_bit <= 1'b0;
+            bit_idx    <= '0;
+            stop_idx   <= '0;
+        end
+        else begin
+
+            state <= next_state;
+
+            // tx_start is accepted only in IDLE.
+            // Therefore tx_start while busy is ignored.
+            if ((state == IDLE) && tx_start) begin
+                shreg      <= tx_data;
+                parity_bit <= ^tx_data;
+                bit_idx    <= '0;
+                stop_idx   <= '0;
+            end
+
+            // Shift to next data bit.
+            if ((state == DATA) && baud_tick) begin
+                if (bit_idx < DATA_BITS-1) begin
+                    shreg   <= {1'b0, shreg[DATA_BITS-1:1]};
+                    bit_idx <= bit_idx + 1'b1;
+                end
+            end
+
+            // Count stop bits.
+            if ((state == STOP) && baud_tick) begin
+                if (stop_idx < STOP_BITS-1)
+                    stop_idx <= stop_idx + 1'b1;
+            end
+
+        end
+    end
+
+    //==========================================================
+    // TX next-state and outputs
+    //==========================================================
+
+    always_comb begin
+
+        next_state    = state;
+        tx_serial_out = 1'b1;
+        tx_busy       = 1'b0;
+        tx_done       = 1'b0;
+
+        case (state)
+
+            IDLE: begin
+                tx_serial_out = 1'b1;
+
+                if (tx_start)
+                    next_state = START;
+            end
+
+            START: begin
+                tx_serial_out = 1'b0;
+                tx_busy       = 1'b1;
+
+                if (baud_tick)
+                    next_state = DATA;
+            end
+
+            DATA: begin
+                tx_serial_out = shreg[0];
+                tx_busy       = 1'b1;
+
+                if (baud_tick && (bit_idx == DATA_BITS-1)) begin
+
+                    if (PARITY_MODE == "none")
+                        next_state = STOP;
+                    else
+                        next_state = PARITY;
+
+                end
+            end
+
+            PARITY: begin
+                tx_busy = 1'b1;
+
+                if (PARITY_MODE == "even")
+                    tx_serial_out = parity_bit;
+                else
+                    tx_serial_out = ~parity_bit;
+
+                if (baud_tick)
+                    next_state = STOP;
+            end
+
+            STOP: begin
+                tx_serial_out = 1'b1;
+                tx_busy       = 1'b1;
+
+                if (baud_tick && (stop_idx == STOP_BITS-1))
+                    next_state = DONE;
+            end
+
+            DONE: begin
+                tx_serial_out = 1'b1;
+                tx_busy       = 1'b0;
+                tx_done       = 1'b1;
+
+                next_state = IDLE;
+            end
+
+            default: begin
+                next_state    = IDLE;
+                tx_serial_out = 1'b1;
+                tx_busy       = 1'b0;
+                tx_done       = 1'b0;
+            end
+
+        endcase
+    end
+
+endmodule
+
+
+//==============================================================
+// UART RECEIVER
+//==============================================================
 module uart_rx #(
     parameter int unsigned CLK_FREQ_HZ = 100_000_000,
     parameter int unsigned BAUD_RATE   = 115_200,
@@ -10,11 +247,7 @@ module uart_rx #(
 )(
     input  logic                 clk,
     input  logic                 rst,
-
     input  logic                 rx_serial_in,
-
-    // Explicitly acknowledges that rx_data was consumed.
-    input  logic                 rx_read,
 
     output logic [DATA_BITS-1:0] rx_data,
     output logic                 rx_valid,
@@ -23,9 +256,9 @@ module uart_rx #(
     output logic                 overrun_error
 );
 
-    //============================================================
-    // RX baud generator
-    //============================================================
+    //==========================================================
+    // 16x sample tick
+    //==========================================================
 
     logic sample_tick;
 
@@ -33,21 +266,20 @@ module uart_rx #(
         .CLK_FREQ_HZ(CLK_FREQ_HZ),
         .BAUD_RATE  (BAUD_RATE),
         .OVERSAMPLE (OVERSAMPLE)
-    ) rx_baud_gen (
+    ) baud_gen (
         .clk  (clk),
         .rst  (rst),
         .tick (sample_tick)
     );
 
-    //============================================================
-    // 2-flop synchronizer
-    //============================================================
+    //==========================================================
+    // Synchronize asynchronous RX input
+    //==========================================================
 
     logic rx_meta;
     logic rx_sync;
 
     always_ff @(posedge clk) begin
-
         if (rst) begin
             rx_meta <= 1'b1;
             rx_sync <= 1'b1;
@@ -56,12 +288,11 @@ module uart_rx #(
             rx_meta <= rx_serial_in;
             rx_sync <= rx_meta;
         end
-
     end
 
-    //============================================================
+    //==========================================================
     // RX FSM
-    //============================================================
+    //==========================================================
 
     typedef enum logic [2:0] {
         RX_IDLE,
@@ -72,27 +303,38 @@ module uart_rx #(
         RX_ERROR_DONE
     } rx_state_t;
 
-    rx_state_t state;
+    rx_state_t state, next_state;
 
-    //============================================================
-    // Registers
-    //============================================================
+    //==========================================================
+    // RX registers
+    //==========================================================
 
-    logic [DATA_BITS-1:0] rx_shift;
+    logic [DATA_BITS-1:0] shreg;
 
     logic parity_accum;
+    logic parity_bad;
+    logic frame_bad;
 
-    integer sample_count;
-    integer start_count;
-    integer bit_index;
-    integer stop_count;
+    localparam int SAMPLE_WIDTH =
+        (OVERSAMPLE <= 1) ? 1 : $clog2(OVERSAMPLE);
 
-    logic frame_error_pending;
-    logic parity_error_pending;
+    localparam int BIT_WIDTH =
+        (DATA_BITS <= 1) ? 1 : $clog2(DATA_BITS);
 
-    //============================================================
-    // RX FSM
-    //============================================================
+    localparam int STOP_WIDTH =
+        (STOP_BITS <= 1) ? 1 : $clog2(STOP_BITS);
+
+    logic [SAMPLE_WIDTH-1:0] sample_cnt;
+    logic [SAMPLE_WIDTH-1:0] start_cnt;
+    logic [BIT_WIDTH-1:0]    bit_idx;
+    logic [STOP_WIDTH-1:0]   stop_idx;
+
+    // Internal one-byte pending indicator.
+    logic rx_pending;
+
+    //==========================================================
+    // Sequential logic
+    //==========================================================
 
     always_ff @(posedge clk) begin
 
@@ -100,245 +342,321 @@ module uart_rx #(
 
             state <= RX_IDLE;
 
-            rx_shift <= '0;
-            rx_data  <= '0;
+            shreg        <= '0;
+            parity_accum <= 1'b0;
 
+            parity_bad <= 1'b0;
+            frame_bad  <= 1'b0;
+
+            sample_cnt <= '0;
+            start_cnt  <= '0;
+            bit_idx    <= '0;
+            stop_idx   <= '0;
+
+            rx_data  <= '0;
             rx_valid <= 1'b0;
 
             framing_error <= 1'b0;
             parity_error  <= 1'b0;
             overrun_error <= 1'b0;
 
-            parity_accum <= 1'b0;
-
-            sample_count <= 0;
-            start_count  <= 0;
-            bit_index    <= 0;
-            stop_count   <= 0;
-
-            frame_error_pending  <= 1'b0;
-            parity_error_pending <= 1'b0;
+            rx_pending <= 1'b0;
         end
+
         else begin
 
-            //====================================================
-            // Clear valid when host consumes current byte
-            //====================================================
+            state <= next_state;
 
-            if (rx_read && rx_valid)
-                rx_valid <= 1'b0;
+            // rx_valid is a one-cycle notification.
+            rx_valid <= 1'b0;
 
-            case (state)
+            // Start of a new frame.
+            if ((state == RX_IDLE) &&
+                sample_tick &&
+                !rx_sync) begin
 
-                //================================================
-                // IDLE
-                //================================================
+                parity_bad <= 1'b0;
+                frame_bad  <= 1'b0;
+                start_cnt  <= 'd1;
 
-                RX_IDLE: begin
+            end
 
-                    sample_count <= 0;
-                    start_count  <= 0;
-                    bit_index    <= 0;
-                    stop_count   <= 0;
+            //==================================================
+            // START DETECT
+            //==================================================
 
-                    frame_error_pending  <= 1'b0;
-                    parity_error_pending <= 1'b0;
+            if ((state == RX_START_DETECT) && sample_tick) begin
 
-                    // UART idle is HIGH.
-                    // LOW indicates a possible start bit.
-                    if (sample_tick && !rx_sync) begin
+                if (!rx_sync) begin
 
-                        start_count <= 1;
+                    if (start_cnt < (OVERSAMPLE/2)-1)
+                        start_cnt <= start_cnt + 1'b1;
 
-                        state <= RX_START_DETECT;
+                end
+                else begin
+
+                    // False start / glitch.
+                    start_cnt <= '0;
+
+                end
+            end
+
+            //==================================================
+            // DATA
+            //==================================================
+
+            if ((state == RX_DATA) && sample_tick) begin
+
+                if (sample_cnt == OVERSAMPLE-1) begin
+
+                    sample_cnt <= '0;
+
+                    // Sample near center of bit.
+                    shreg[bit_idx] <= rx_sync;
+
+                    if (PARITY_MODE != "none")
+                        parity_accum <= parity_accum ^ rx_sync;
+
+                    if (bit_idx < DATA_BITS-1)
+                        bit_idx <= bit_idx + 1'b1;
+
+                end
+                else begin
+                    sample_cnt <= sample_cnt + 1'b1;
+                end
+            end
+
+            //==================================================
+            // PARITY
+            //==================================================
+
+            if ((state == RX_PARITY) && sample_tick) begin
+
+                if (sample_cnt == OVERSAMPLE-1) begin
+
+                    sample_cnt <= '0;
+
+                    if (PARITY_MODE == "even") begin
+
+                        if (rx_sync != parity_accum)
+                            parity_bad <= 1'b1;
+
+                    end
+                    else begin
+
+                        if (rx_sync != ~parity_accum)
+                            parity_bad <= 1'b1;
+
                     end
                 end
+                else begin
+                    sample_cnt <= sample_cnt + 1'b1;
+                end
+            end
 
-                //================================================
-                // START DETECT
-                //================================================
+            //==================================================
+            // STOP
+            //==================================================
 
-                RX_START_DETECT: begin
+            if ((state == RX_STOP) && sample_tick) begin
 
-                    if (sample_tick) begin
+                if (sample_cnt == OVERSAMPLE-1) begin
 
-                        if (!rx_sync) begin
+                    sample_cnt <= '0;
 
-                            // Confirm LOW until the middle
-                            // of the start bit.
+                    // Stop bit must be HIGH.
+                    if (!rx_sync)
+                        frame_bad <= 1'b1;
 
-                            if (start_count >= (OVERSAMPLE/2)-1) begin
+                    if (stop_idx < STOP_BITS-1)
+                        stop_idx <= stop_idx + 1'b1;
 
-                                sample_count <= 0;
-                                bit_index    <= 0;
+                end
+                else begin
+                    sample_cnt <= sample_cnt + 1'b1;
+                end
+            end
 
-                                rx_shift     <= '0;
-                                parity_accum <= 1'b0;
+            //==================================================
+            // ERROR / DONE
+            //==================================================
 
-                                state <= RX_DATA;
-                            end
-                            else begin
-                                start_count <= start_count + 1;
-                            end
-                        end
-                        else begin
+            if (state == RX_ERROR_DONE) begin
 
-                            // The LOW pulse disappeared before
-                            // midpoint: reject as a glitch.
+                if (frame_bad)
+                    framing_error <= 1'b1;
 
-                            start_count <= 0;
-                            state <= RX_IDLE;
-                        end
+                if (parity_bad)
+                    parity_error <= 1'b1;
+
+                // Only a completely valid frame is delivered.
+                if (!frame_bad && !parity_bad) begin
+
+                    if (rx_pending) begin
+
+                        // Previous byte has not been consumed.
+                        overrun_error <= 1'b1;
+
+                    end
+                    else begin
+
+                        rx_data    <= shreg;
+                        rx_valid   <= 1'b1;
+                        rx_pending <= 1'b1;
+
                     end
                 end
+            end
 
-                //================================================
-                // DATA
-                //================================================
-
-                RX_DATA: begin
-
-                    if (sample_tick) begin
-
-                        if (sample_count == OVERSAMPLE-1) begin
-
-                            sample_count <= 0;
-
-                            // Sample data bit at its midpoint
-                            rx_shift[bit_index] <= rx_sync;
-
-                            if (PARITY_MODE != "none")
-                                parity_accum <=
-                                    parity_accum ^ rx_sync;
-
-                            if (bit_index == DATA_BITS-1) begin
-
-                                if (PARITY_MODE == "none") begin
-
-                                    stop_count <= 0;
-                                    state <= RX_STOP;
-                                end
-                                else begin
-
-                                    state <= RX_PARITY;
-                                end
-                            end
-                            else begin
-
-                                bit_index <= bit_index + 1;
-                            end
-                        end
-                        else begin
-
-                            sample_count <= sample_count + 1;
-                        end
-                    end
-                end
-
-                //================================================
-                // PARITY
-                //================================================
-
-                RX_PARITY: begin
-
-                    if (sample_tick) begin
-
-                        if (sample_count == OVERSAMPLE-1) begin
-
-                            sample_count <= 0;
-
-                            if (PARITY_MODE == "even") begin
-
-                                if (rx_sync != parity_accum)
-                                    parity_error_pending <= 1'b1;
-                            end
-                            else begin
-
-                                if (rx_sync != ~parity_accum)
-                                    parity_error_pending <= 1'b1;
-                            end
-
-                            stop_count <= 0;
-
-                            state <= RX_STOP;
-                        end
-                        else begin
-
-                            sample_count <= sample_count + 1;
-                        end
-                    end
-                end
-
-                //================================================
-                // STOP
-                //================================================
-
-                RX_STOP: begin
-
-                    if (sample_tick) begin
-
-                        if (sample_count == OVERSAMPLE-1) begin
-
-                            sample_count <= 0;
-
-                            // Stop bit must be HIGH
-                            if (!rx_sync)
-                                frame_error_pending <= 1'b1;
-
-                            if (stop_count == STOP_BITS-1) begin
-                                state <= RX_ERROR_DONE;
-                            end
-                            else begin
-                                stop_count <= stop_count + 1;
-                            end
-                        end
-                        else begin
-                            sample_count <= sample_count + 1;
-                        end
-                    end
-                end
-
-                //================================================
-                // ERROR / DONE
-                //================================================
-
-                RX_ERROR_DONE: begin
-
-                    // Report errors
-                    if (frame_error_pending)
-                        framing_error <= 1'b1;
-
-                    if (parity_error_pending)
-                        parity_error <= 1'b1;
-
-                    // Only accept a completely valid byte
-                    if (!frame_error_pending &&
-                        !parity_error_pending) begin
-
-                        if (rx_valid && !rx_read) begin
-
-                            // Previous byte has not been consumed.
-                            overrun_error <= 1'b1;
-
-                            // Preserve old rx_data.
-                            rx_valid <= 1'b1;
-                        end
-                        else begin
-
-                            rx_data  <= rx_shift;
-                            rx_valid <= 1'b1;
-                        end
-                    end
-
-                    state <= RX_IDLE;
-                end
-
-                default: begin
-                    state <= RX_IDLE;
-                end
-
-            endcase
         end
     end
+
+    //==========================================================
+    // RX next-state logic
+    //==========================================================
+
+    always_comb begin
+
+        next_state = state;
+
+        case (state)
+
+            RX_IDLE: begin
+
+                if (sample_tick && !rx_sync)
+                    next_state = RX_START_DETECT;
+
+            end
+
+            RX_START_DETECT: begin
+
+                if (sample_tick) begin
+
+                    if (!rx_sync) begin
+
+                        // Confirm LOW at half-bit point.
+                        if (start_cnt >= (OVERSAMPLE/2)-1)
+                            next_state = RX_DATA;
+
+                    end
+                    else begin
+
+                        // Glitch rejected.
+                        next_state = RX_IDLE;
+
+                    end
+                end
+
+            end
+
+            RX_DATA: begin
+
+                if (sample_tick &&
+                    (sample_cnt == OVERSAMPLE-1) &&
+                    (bit_idx == DATA_BITS-1)) begin
+
+                    if (PARITY_MODE == "none")
+                        next_state = RX_STOP;
+                    else
+                        next_state = RX_PARITY;
+
+                end
+            end
+
+            RX_PARITY: begin
+
+                if (sample_tick &&
+                    (sample_cnt == OVERSAMPLE-1))
+
+                    next_state = RX_STOP;
+
+            end
+
+            RX_STOP: begin
+
+                if (sample_tick &&
+                    (sample_cnt == OVERSAMPLE-1) &&
+                    (stop_idx == STOP_BITS-1))
+
+                    next_state = RX_ERROR_DONE;
+
+            end
+
+            RX_ERROR_DONE: begin
+                next_state = RX_IDLE;
+            end
+
+            default: begin
+                next_state = RX_IDLE;
+            end
+
+        endcase
+
+    end
+
+endmodule
+
+
+//==============================================================
+// TOP-LEVEL UART CONTROLLER
+//==============================================================
+module uart_controller #(
+    parameter int unsigned CLK_FREQ_HZ = 100_000_000,
+    parameter int unsigned BAUD_RATE   = 115_200,
+    parameter int unsigned DATA_BITS   = 8,
+    parameter string       PARITY_MODE = "none",
+    parameter int unsigned STOP_BITS   = 1
+)(
+    input  logic                 clk,
+    input  logic                 rst,
+
+    input  logic                 tx_start,
+    input  logic [DATA_BITS-1:0] tx_data,
+    input  logic                 rx_serial_in,
+
+    output logic                 tx_serial_out,
+    output logic                 tx_busy,
+    output logic                 tx_done,
+
+    output logic [DATA_BITS-1:0] rx_data,
+    output logic                 rx_valid,
+    output logic                 framing_error,
+    output logic                 parity_error,
+    output logic                 overrun_error
+);
+
+    uart_tx #(
+        .CLK_FREQ_HZ(CLK_FREQ_HZ),
+        .BAUD_RATE  (BAUD_RATE),
+        .DATA_BITS  (DATA_BITS),
+        .PARITY_MODE(PARITY_MODE),
+        .STOP_BITS  (STOP_BITS)
+    ) tx_inst (
+        .clk           (clk),
+        .rst           (rst),
+        .tx_start      (tx_start),
+        .tx_data       (tx_data),
+        .tx_serial_out (tx_serial_out),
+        .tx_busy       (tx_busy),
+        .tx_done       (tx_done)
+    );
+
+    uart_rx #(
+        .CLK_FREQ_HZ(CLK_FREQ_HZ),
+        .BAUD_RATE  (BAUD_RATE),
+        .DATA_BITS  (DATA_BITS),
+        .PARITY_MODE(PARITY_MODE),
+        .STOP_BITS   (STOP_BITS),
+        .OVERSAMPLE  (16)
+    ) rx_inst (
+        .clk           (clk),
+        .rst           (rst),
+        .rx_serial_in  (rx_serial_in),
+        .rx_data       (rx_data),
+        .rx_valid      (rx_valid),
+        .framing_error (framing_error),
+        .parity_error  (parity_error),
+        .overrun_error (overrun_error)
+    );
 
 endmodule
