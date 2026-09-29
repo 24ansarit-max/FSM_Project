@@ -1,0 +1,35 @@
+Here is an example of a simple synchronous memory (single read/write port, same clock) in SystemVerilog:
+
+module sync_mem #(parameter WIDTH = 8, DEPTH = 16) (
+    input  logic                     clk,
+    input  logic                     we,
+    input  logic [$clog2(DEPTH)-1:0] addr,
+    input  logic [WIDTH-1:0]         din,
+    output logic [WIDTH-1:0]         dout
+);
+    logic [WIDTH-1:0] mem [0:DEPTH-1];
+    always_ff @(posedge clk) begin
+        if (we) mem[addr] <= din;
+        dout <= mem[addr];
+    end
+endmodule
+
+Here is an example of an up/down counter used for tracking fill level:
+
+module updown_counter #(parameter WIDTH = 5) (
+    input  logic             clk, rst,
+    input  logic             inc, dec,
+    output logic [WIDTH-1:0] count
+);
+    always_ff @(posedge clk) begin
+        if (rst) count <= '0;
+        else if (inc && !dec) count <= count + 1'b1;
+        else if (dec && !inc) count <= count - 1'b1;
+    end
+endmodule
+
+Based on the synchronous memory and up/down counter style shown in these examples, generate a synthesizable, parameterized synchronous FIFO controller in SystemVerilog.
+
+Parameters: DATA_WIDTH, DEPTH (power of 2), ALMOST_FULL_THRESHOLD, ALMOST_EMPTY_THRESHOLD.
+Outputs must include full, empty, almost_full, almost_empty, fifo_count, overflow_flag, underflow_flag, rd_data.
+Use the memory-array style and a count-based (or pointer-based) fill-level tracking style shown above, extended with read/write pointer management and full/empty logic. Follow the same coding style (parameterized, clean always_ff blocks). Provide full RTL and a short explanation.
