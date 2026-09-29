@@ -1,0 +1,13 @@
+Design a parameterized UART Transmitter (TX) and Receiver (RX) pair in synthesizable SystemVerilog.
+
+TX FSM states: Idle, Start, Data, Parity, Stop, Done.
+RX FSM states: Idle, Start Detect, Data, Parity, Stop, Error/Done.
+
+Requirements:
+- Parameters: CLK_FREQ_HZ, BAUD_RATE, DATA_BITS (7 or 8), PARITY_MODE (none/even/odd), STOP_BITS (1 or 2).
+- TX Inputs: clk, rst, tx_start, tx_data[DATA_BITS-1:0]. TX Outputs: tx_serial_out, tx_busy, tx_done.
+- RX Inputs: clk, rst, rx_serial_in. RX Outputs: rx_data[DATA_BITS-1:0], rx_valid, framing_error, parity_error, overrun_error.
+- Include a shared or separate baud-rate generator derived from CLK_FREQ_HZ and BAUD_RATE.
+- The receiver must oversample the line and detect the start bit at the correct midpoint, rejecting glitches.
+- Handle tx_start while busy, missing/invalid stop bit, parity mismatch, and a new received byte arriving before the previous rx_data was read (overrun).
+- Provide the complete RTL code (TX module, RX module, and baud generator) and explain the design, including FSM transitions for both TX and RX.
