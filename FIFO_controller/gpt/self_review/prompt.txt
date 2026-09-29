@@ -1,0 +1,29 @@
+Step 1 — Generation:
+Design a parameterized synchronous FIFO controller in synthesizable SystemVerilog.
+
+Parameters: DATA_WIDTH, DEPTH (power of 2), ALMOST_FULL_THRESHOLD, ALMOST_EMPTY_THRESHOLD.
+Inputs: clk, rst, wr_en, wr_data, rd_en.
+Outputs: rd_data, full, empty, almost_full, almost_empty, fifo_count, overflow_flag, underflow_flag.
+
+Generate the complete RTL code for this design.
+
+Step 2 — Review:
+Now review the RTL you just generated against the original specification. Explicitly check each of the following and report any issues found:
+- Functional correctness (does data written first come out first — true FIFO ordering? Does fifo_count always match the actual number of valid entries?)
+- Parameterization (is DEPTH truly parameterized and DATA_WIDTH used consistently? Are pointer/count widths derived via $clog2 rather than hardcoded?)
+- Signed/unsigned handling (fifo_count and pointers should be unsigned — verify no accidental signed comparison or subtraction issues)
+- Reset behavior (does synchronous reset clear pointers, count, and correctly assert empty / deassert full?)
+- Full/empty flag correctness (are full and empty correctly distinguished despite wr_ptr == rd_ptr occurring in both cases? Are almost_full/almost_empty threshold comparisons using the correct operators, >= vs >, <= vs <?)
+- Corner cases:
+   - Simultaneous wr_en and rd_en in the same cycle at empty, full, and mid-fill states
+   - wr_en asserted while full (must not corrupt memory, must not wrap wr_ptr, must assert overflow_flag)
+   - rd_en asserted while empty (must not assert rd_data as valid, must assert underflow_flag)
+   - DEPTH = 1 (minimum size) behavior
+   - fifo_count reaching exactly DEPTH and exactly 0
+   - Read latency: is rd_data valid the same cycle as rd_en, or one cycle later, and is this consistent with how empty/full are checked?
+- Synthesizability (any non-synthesizable constructs, or memory access patterns that would block BRAM inference?)
+- Unintended latches (any incomplete if/case statements in combinational blocks?)
+- Width mismatches (pointer width vs. $clog2(DEPTH), fifo_count width vs. DEPTH+1 range, threshold parameter widths?)
+
+Step 3 — Correction:
+Based on the issues identified above, provide a corrected version of the complete RTL code, with a short note summarizing what was fixed and why.
