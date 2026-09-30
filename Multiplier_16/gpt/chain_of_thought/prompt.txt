@@ -1,0 +1,14 @@
+I want you to design a 16-bit signed/unsigned multiplier in synthesizable SystemVerilog.
+Before writing any RTL, think through the design step by step:
+
+1. Identify all inputs and outputs (A[15:0], B[15:0], signed_mode, clk, rst, start, product[31:0], valid_out, overflow).
+2. Define how signed_mode changes interpretation of A and B:
+   - In unsigned mode, A and B are treated as 0 to 65535
+   - In signed mode, A and B are treated as two's-complement -32768 to +32767
+   - Decide whether to use a dynamic sign-extension step (extend A and B to 17 bits based on signed_mode, then multiply) or dual-path logic
+3. Define the datapath: operand extension width, the multiplication itself (single shared multiplier or two paths), and how the 32-bit product is assembled and interpreted (signed vs. unsigned result).
+4. Identify corner cases: most negative value (-32768) multiplied by itself or by -1, multiplying two negative numbers (result must be positive), unsigned multiplication of the two largest values (65535 x 65535, checking product width is sufficient), signed_mode toggling between operations, and start asserted while a previous multiply is still completing (if pipelined/multi-cycle).
+5. Define whether the multiplier is combinational (single cycle) or registered/pipelined, and define reset behavior accordingly (synchronous reset, clear product and valid_out).
+6. Only after completing the above steps, generate the synthesizable SystemVerilog RTL implementing this multiplier.
+
+Show your reasoning for each step before presenting the final RTL code.
