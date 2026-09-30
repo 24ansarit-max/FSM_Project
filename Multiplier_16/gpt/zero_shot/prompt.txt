@@ -1,0 +1,8 @@
+Design a 16-bit multiplier in synthesizable SystemVerilog that supports both signed and unsigned multiplication, selectable via a mode input.
+
+Requirements:
+- Inputs: clk, rst, a[15:0], b[15:0], signed_mode (1 = signed, 0 = unsigned), start.
+- Outputs: product[31:0], valid, overflow.
+- The multiplier must correctly interpret operands as two's-complement signed values when signed_mode = 1, and as plain unsigned values when signed_mode = 0.
+- Include overflow detection appropriate to each mode (e.g., for signed mode, check whether the result fits in a meaningful reduced range if applicable; for unsigned mode, define overflow relative to the expected output width).
+- Provide the complete RTL code and explain the design, including how the sign handling and overflow detection differ between modes.
