@@ -1,0 +1,20 @@
+Generate synthesizable SystemVerilog RTL for a 16-bit signed/unsigned multiplier following these exact instructions:
+
+Requirements: dynamic signed_mode selection (signed vs. unsigned interpretation of A and B), 32-bit product output, overflow flag.
+
+Hardware/design constraints:
+- Target FPGA: AMD/Xilinx Artix-7
+- Tool: Vivado 2025.2
+- Must be synthesizable SystemVerilog
+- Must use synchronous reset (active-high, on clk posedge) for all registered outputs
+- Must NOT infer any latches (every case/if in combinational logic must have a default assignment)
+- Use a single shared multiplier datapath for both signed and unsigned modes (extend operands to 17 bits with mode-dependent sign/zero extension) rather than instantiating two separate multipliers, to allow DSP48E1 inference and minimize resource duplication
+- Register the inputs and the product output (at least one pipeline stage) so Vivado can map the multiplication onto DSP48E1 slices efficiently
+- Use explicit $signed()/$unsigned() casts rather than relying on port declarations alone, since signed_mode is a runtime control signal
+- Minimize LUT and flip-flop usage; avoid unnecessary registers outside the DSP pipeline stage
+- Target maximum operating frequency: 100 MHz
+- Clearly separate: input registration, sign/zero-extension logic, multiplication, and output/overflow logic
+- valid_out must be a registered signal aligned with the pipeline latency (asserted exactly when product is valid)
+- Avoid width mismatches; use explicit sizing on all extended operands and the product register
+
+Provide the complete RTL code only, followed by a brief explanation of how the design achieves DSP inference and timing closure at 100 MHz.
