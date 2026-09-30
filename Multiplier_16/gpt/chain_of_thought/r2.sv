@@ -1,4 +1,4 @@
-```systemverilog
+
 `timescale 1ns/1ps
 
 module multiplier_16bit (
@@ -106,4 +106,4 @@ module multiplier_16bit (
     end
 
 endmodule
-```
+
