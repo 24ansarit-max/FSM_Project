@@ -1,0 +1,25 @@
+Here is an example of a simple unsigned 4-bit multiplier in SystemVerilog:
+
+module mult_unsigned4 (
+    input  logic [3:0] a, b,
+    output logic [7:0] p
+);
+    assign p = a * b;
+endmodule
+
+Here is an example of a signed 8-bit adder with overflow detection:
+
+module signed_adder8 (
+    input  logic signed [7:0] a, b,
+    output logic signed [8:0] sum,
+    output logic overflow
+);
+    assign sum = a + b;
+    // Overflow: both operands same sign but result has different sign
+    assign overflow = (a[7] == b[7]) && (sum[7] != a[7]);
+endmodule
+
+Based on the multiplication style and signed-overflow-detection style shown in these examples, generate a synthesizable 16-bit multiplier in SystemVerilog that supports both signed and unsigned operation via a signed_mode select input.
+
+Inputs: a[15:0], b[15:0], signed_mode, clk, rst, start. Outputs: product[31:0], valid, overflow.
+Use $signed()/$unsigned() casting based on signed_mode, and apply overflow-detection logic analogous to the sign-comparison style shown above. Provide full RTL and a short explanation.
