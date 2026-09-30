@@ -1,0 +1,28 @@
+Step 1 — Generation:
+Design a 16-bit signed/unsigned multiplier in synthesizable SystemVerilog.
+
+Inputs: clk, rst, A[15:0], B[15:0], signed_mode, start.
+Outputs: product[31:0], valid_out, overflow.
+
+Generate the complete RTL code for this design.
+
+Step 2 — Review:
+Now review the RTL you just generated against the original specification. Explicitly check each of the following and report any issues found:
+- Functional correctness (does the multiplier produce the correct 32-bit product for both signed_mode = 0 and signed_mode = 1, verified against a few known test cases?)
+- Parameterization (is the design hardcoded to 16-bit, or could operand width be parameterized cleanly? Note this even if 16-bit is fixed by spec.)
+- Signed/unsigned handling (is sign extension applied correctly and only in signed mode? Are $signed()/$unsigned() casts used correctly rather than relying solely on static port types? Does unsigned mode ever accidentally sign-extend a value with MSB = 1?)
+- Reset behavior (does synchronous reset correctly clear product, valid_out, and any pipeline registers?)
+- Overflow detection (is overflow correctly computed for signed mode — e.g., checking if the product exceeds 16-bit signed range if that's the intended check — and for unsigned mode? Is the most-negative-value edge case, -32768 x -1, handled correctly?)
+- Corner cases:
+   - -32768 x -32768 (largest signed magnitude product)
+   - -32768 x -1 (classic signed overflow corner case)
+   - 65535 x 65535 (largest unsigned product)
+   - A or B = 0
+   - signed_mode toggled between back-to-back operations
+   - start asserted while a previous multiply's result hasn't been read (if multi-cycle/pipelined)
+- Synthesizability (any non-synthesizable constructs, or dual multiplier instantiations that would block DSP inference or waste resources?)
+- Unintended latches (any incomplete if/case statements in combinational blocks?)
+- Width mismatches (extended operand width vs. product width, truncation risk in the sign/zero-extension step, product register width vs. actual multiplication result width)
+
+Step 3 — Correction:
+Based on the issues identified above, provide a corrected version of the complete RTL code, with a short note summarizing what was fixed and why.
