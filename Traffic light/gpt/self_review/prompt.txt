@@ -1,1 +1,33 @@
+Step 1 — Generation:
+Design a parameterized 4-way (cross) intersection traffic light controller in synthesizable SystemVerilog, driven by an FSM with states: N_Green, N_Yellow, E_Green, E_Yellow, S_Green, S_Yellow, W_Green, W_Yellow, All_Red, Fault_Flash.
 
+Parameters: CLK_FREQ_HZ, GREEN_TIME_SEC, YELLOW_TIME_SEC, ALL_RED_TIME_SEC.
+Inputs: clk, rst, emergency_vehicle, fault_detect, pedestrian_request[3:0].
+Outputs: light_N[2:0], light_E[2:0], light_S[2:0], light_W[2:0] ({R,Y,G}), pedestrian_walk[3:0].
+
+Generate the complete RTL code for this design.
+
+Step 2 — Review:
+Now review the RTL you just generated against the original specification. Explicitly check each of the following and report any issues found:
+- Functional correctness (does the FSM cycle N -> E -> S -> W with yellow and all-red clearance between every green phase? Do durations match the parameters?)
+- Parameterization (are timer values derived from CLK_FREQ_HZ and *_TIME_SEC, or are cycle counts hardcoded? Is the timer width derived via $clog2?)
+- Safety (can two approaches ever be Green at the same time in any state, during transitions, or after reset? Does any state skip the yellow or all-red interval?)
+- Signed/unsigned handling (any timer or counter that could underflow or overflow?)
+- Reset behavior (does synchronous reset enter a safe state, clear the timer, and turn off all pedestrian walk signals?)
+- FSM completeness (are all ten states reachable? Is there a defined exit from every state, including Fault_Flash and the emergency override? Does All_Red correctly know which approach is next?)
+- Corner cases:
+   - Emergency vehicle asserted during green, during yellow, or during All_Red
+   - Emergency released while in override: does the FSM resume safely and in the correct phase?
+   - fault_detect asserted and released in any state
+   - Emergency and fault asserted simultaneously (priority defined?)
+   - Pedestrian request arriving at the last cycle of green
+   - Rapid toggling or glitching of emergency_vehicle
+   - Timer rollover exactly at a state boundary
+- Metastability (are emergency_vehicle and fault_detect synchronized with at least 2 flip-flops before use?)
+- Output quality (are light and walk outputs registered and glitch-free? Can any output momentarily show an illegal combination, such as Green and Yellow together, during a state change?)
+- Synthesizability (any non-synthesizable constructs, or duplicated timers per state that waste resources?)
+- Unintended latches (any incomplete if/case statements in combinational blocks?)
+- Width mismatches (implicit truncation or extension in the timer, reload values, and comparisons?)
+
+Step 3 — Correction:
+Based on the issues identified above, provide a corrected version of the complete RTL code, with a short note summarizing what was fixed and why.
