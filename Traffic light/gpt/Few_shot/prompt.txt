@@ -1,35 +1,49 @@
-Here is an example of a simple 2-state FSM in Verilog, written in a clean behavioral style:
+Here is an example of a simple 3-state traffic light FSM with a timer in SystemVerilog:
 
-module simple_fsm (
-    input clk,
-    input reset,
-    output reg state_out
+module traffic_light (
+    input  logic       clk, rst,
+    output logic [2:0] light // {R,Y,G}
 );
-    reg state;
-    parameter A = 1'b0, B = 1'b1;
+    typedef enum logic [1:0] {RED, GREEN, YELLOW} state_t;
+    state_t state, next_state;
+    logic [3:0] timer;
 
-    always @(posedge clk or posedge reset) begin
-        if (reset)
-            state <= A;
+    always_ff @(posedge clk) begin
+        if (rst) begin state <= RED; timer <= '0; end
         else begin
-            case (state)
-                A: state <= B;
-                B: state <= A;
-                default: state <= A;
-            endcase
+            state <= next_state;
+            timer <= (state != next_state) ? '0 : timer + 1'b1;
         end
     end
 
-    always @(*) begin
-        state_out = state;
+    always_comb begin
+        next_state = state;
+        light = 3'b100;
+        case (state)
+            RED:    begin light = 3'b100; if (timer == 4'd9) next_state = GREEN;  end
+            GREEN:  begin light = 3'b001; if (timer == 4'd9) next_state = YELLOW; end
+            YELLOW: begin light = 3'b010; if (timer == 4'd2) next_state = RED;    end
+            default: next_state = RED;
+        endcase
     end
 endmodule
 
-Using the same coding style and conventions shown above (parameterized states, case-statement transitions, separate output logic), write a Traffic Light Controller module with:
-- States: RED, GREEN, YELLOW (cyclic: RED -> GREEN -> YELLOW -> RED)
-- A counter to control how long each state is held
-- Outputs: red, yellow, green
-- Optional: add a pedestrian signal (walk = 1 during RED, 0 otherwise)
-- Synchronous reset
+Here is an example of a safety-interlocked FSM output stage (blocks conflicting outputs):
 
-Output the complete Verilog module code.
+module interlock (
+    input  logic req_a, req_b,
+    output logic grant_a, grant_b
+);
+    always_comb begin
+        grant_a = req_a & ~req_b;
+        grant_b = req_b & ~req_a;
+    end
+endmodule
+
+Based on the timer-driven FSM style and the mutual-exclusion safety style shown in these examples, generate a synthesizable, parameterized 4-way intersection traffic light controller in SystemVerilog.
+
+Approaches: North, East, South, West. FSM states: N_Green, N_Yellow, E_Green, E_Yellow, S_Green, S_Yellow, W_Green, W_Yellow, All_Red, Fault_Flash.
+Parameters: CLK_FREQ_HZ, GREEN_TIME_SEC, YELLOW_TIME_SEC, ALL_RED_TIME_SEC.
+Inputs: clk, rst, emergency_vehicle, fault_detect, pedestrian_request[3:0]. Outputs: light_N/E/S/W[2:0], pedestrian_walk[3:0].
+
+The design must guarantee that no two approaches are ever green simultaneously, using the same kind of explicit mutual-exclusion logic shown above. Follow the same coding style (typedef enum FSM, separate next-state logic, default cases, parameterized timer). Provide full RTL and a short explanation.
