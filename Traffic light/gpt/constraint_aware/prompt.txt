@@ -1,0 +1,23 @@
+Generate synthesizable SystemVerilog RTL for a parameterized 4-way intersection traffic light controller following these exact instructions:
+
+FSM states required: N_Green, N_Yellow, E_Green, E_Yellow, S_Green, S_Yellow, W_Green, W_Yellow, All_Red, Fault_Flash.
+Features required: fixed N->E->S->W phase rotation, yellow and all-red clearance between phases, emergency vehicle override, fault flashing-red mode, pedestrian walk signals.
+
+Hardware/design constraints:
+- Target FPGA: AMD/Xilinx Artix-7
+- Tool: Vivado 2025.2
+- Must be synthesizable SystemVerilog
+- System clock: 100 MHz; all phase durations derived from parameters CLK_FREQ_HZ, GREEN_TIME_SEC, YELLOW_TIME_SEC, ALL_RED_TIME_SEC (no hardcoded cycle counts)
+- Must use synchronous reset (active-high, on clk posedge), resetting to the All_Red state
+- Must NOT infer any latches (every case/if in combinational logic must have a default assignment)
+- emergency_vehicle and fault_detect are asynchronous external inputs: pass each through a 2-flip-flop synchronizer (add ASYNC_REG attribute) before use
+- Safety interlock: add a final combinational/registered output guard so that at most one approach can ever output Green, regardless of FSM state or input glitches (hardwired mutual exclusion on the green outputs)
+- Use a single shared timer counter for all phases (reload value selected by state), not one counter per state
+- Use $clog2 for the counter width; avoid width mismatches and use explicit sizing on all constants
+- Use one-hot or Vivado-friendly state encoding; minimize LUT and flip-flop usage and avoid unnecessary registers
+- Target maximum operating frequency: 100 MHz
+- Clearly separate: state register, next-state logic, shared timer logic, and output logic
+- All light outputs and pedestrian_walk outputs must be registered (glitch-free), since they drive real signal heads
+- Fault_Flash must blink red at a parameterized rate (e.g., 1 Hz) derived from the same timer or a dedicated divider
+
+Provide the complete RTL code only, followed by a brief explanation of how the design guarantees mutual exclusion of green signals, handles asynchronous inputs, and achieves timing closure at 100 MHz.
