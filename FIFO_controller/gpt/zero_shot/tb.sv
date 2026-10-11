@@ -5,38 +5,27 @@ module testbench;
 
     parameter DATA_WIDTH = 8;
     parameter DEPTH = 16;
-    parameter ALMOST_FULL_THRESHOLD = DEPTH - 1;
-    parameter ALMOST_EMPTY_THRESHOLD = 1;
+    parameter ALMOST_FULL_THRESHOLD = DEPTH - 2;
+    parameter ALMOST_EMPTY_THRESHOLD = 2;
 
-    logic clk;
-    logic rst;
+    logic clk, rst;
+    logic wr_en, rd_en;
+    logic [DATA_WIDTH-1:0] wr_data, rd_data;
 
-    logic wr_en;
-    logic [DATA_WIDTH-1:0] wr_data;
-
-    logic rd_en;
-    logic [DATA_WIDTH-1:0] rd_data;
-
-    logic full;
-    logic empty;
-    logic almost_full;
-    logic almost_empty;
-
-    logic [$clog2(DEPTH):0] fifo_count;
-
-    logic overflow_flag;
-    logic underflow_flag;
+    logic full, empty, almost_full, almost_empty;
+    logic [$clog2(DEPTH+1)-1:0] fifo_count;
+    logic overflow_flag, underflow_flag;
 
     integer pass_count = 0;
     integer fail_count = 0;
     integer i;
 
+    // Reference FIFO scoreboard
     logic [DATA_WIDTH-1:0] expected_mem [0:DEPTH-1];
-    integer head;
-    integer tail;
-    integer model_count;
+    integer head = 0;
+    integer tail = 0;
+    integer model_count = 0;
 
-    // DUT
     sync_fifo #(
         .DATA_WIDTH(DATA_WIDTH),
         .DEPTH(DEPTH),
@@ -58,27 +47,11 @@ module testbench;
         .underflow_flag(underflow_flag)
     );
 
-    // 100 MHz clock: 10 ns period
-    initial clk = 1'b0;
+    // 100 MHz clock
+    initial clk = 0;
     always #5 clk = ~clk;
 
-    // Scoreboard model
-    task automatic model_write(input logic [DATA_WIDTH-1:0] data);
-        begin
-            expected_mem[tail] = data;
-            tail = (tail + 1) % DEPTH;
-            model_count = model_count + 1;
-        end
-    endtask
-
-    task automatic model_read;
-        begin
-            head = (head + 1) % DEPTH;
-            model_count = model_count - 1;
-        end
-    endtask
-
-    task automatic check_condition(
+    task automatic check(
         input logic condition,
         input string message
     );
@@ -94,209 +67,228 @@ module testbench;
         end
     endtask
 
-    task automatic check_status;
+    task automatic check_flags;
         begin
             #1;
-            check_condition(fifo_count == model_count,
-                            "FIFO count matches scoreboard");
-            check_condition(full == (model_count == DEPTH),
-                            "FULL flag");
-            check_condition(empty == (model_count == 0),
-                            "EMPTY flag");
-            check_condition(
-                almost_full == (model_count >= ALMOST_FULL_THRESHOLD),
-                "ALMOST_FULL flag"
-            );
-            check_condition(
-                almost_empty == (model_count <= ALMOST_EMPTY_THRESHOLD),
-                "ALMOST_EMPTY flag"
-            );
+            check(fifo_count == model_count,
+                  "FIFO count");
+            check(full == (model_count == DEPTH),
+                  "FULL flag");
+            check(empty == (model_count == 0),
+                  "EMPTY flag");
+            check(almost_full ==
+                  (model_count >= ALMOST_FULL_THRESHOLD),
+                  "ALMOST_FULL flag");
+            check(almost_empty ==
+                  (model_count <= ALMOST_EMPTY_THRESHOLD),
+                  "ALMOST_EMPTY flag");
         end
     endtask
 
-    // Write one item and update the reference model
     task automatic write_item(input logic [DATA_WIDTH-1:0] data);
         begin
             @(negedge clk);
-            wr_en = 1'b1;
+            wr_en = 1;
             wr_data = data;
-            rd_en = 1'b0;
+            rd_en = 0;
 
-            @(posedge clk);
-            if (!full) begin
-                model_write(data);
+            // Save the value accepted by the FIFO.
+            if (model_count < DEPTH) begin
+                expected_mem[tail] = data;
+                tail = (tail + 1) % DEPTH;
+                model_count = model_count + 1;
             end
 
-            @(negedge clk);
-            wr_en = 1'b0;
-            wr_data = '0;
+            @(posedge clk);
+            #1;
+            check(overflow_flag == 0,
+                  "No overflow during valid write");
 
-            check_status();
+            @(negedge clk);
+            wr_en = 0;
+            wr_data = 0;
+
+            check_flags();
         end
     endtask
 
-    // Read one item and compare against the reference model
     task automatic read_item;
         logic [DATA_WIDTH-1:0] expected;
+        integer had_data;
         begin
             @(negedge clk);
-            wr_en = 1'b0;
-            rd_en = 1'b1;
+            wr_en = 0;
+            rd_en = 1;
 
-            if (model_count > 0)
+            had_data = (model_count > 0);
+
+            if (had_data)
                 expected = expected_mem[head];
-            else
-                expected = '0;
 
             @(posedge clk);
-            if (model_count > 0) begin
-                #1;
-                check_condition(rd_data === expected,
-                                $sformatf("Read data expected=%0h actual=%0h",
-                                          expected, rd_data));
-                model_read();
+            #1;
+
+            if (had_data) begin
+                check(rd_data === expected,
+                      $sformatf("Read expected=%02h, got=%02h",
+                                expected, rd_data));
+
+                head = (head + 1) % DEPTH;
+                model_count = model_count - 1;
+
+                check(underflow_flag == 0,
+                      "No underflow during valid read");
             end
             else begin
-                check_condition(underflow_flag === 1'b1,
-                                "Underflow flag asserted");
+                check(underflow_flag == 1,
+                      "Underflow detected");
             end
 
             @(negedge clk);
-            rd_en = 1'b0;
+            rd_en = 0;
 
-            check_status();
+            check_flags();
         end
     endtask
 
-    // Main tests
     initial begin
-        rst = 1'b1;
-        wr_en = 1'b0;
-        wr_data = '0;
-        rd_en = 1'b0;
+        rst = 1;
+        wr_en = 0;
+        rd_en = 0;
+        wr_data = 0;
 
-        head = 0;
-        tail = 0;
-        model_count = 0;
+        $display("\n========== SYNCHRONOUS FIFO TEST ==========");
 
-        $display("\n======================================");
-        $display("       SYNCHRONOUS FIFO TEST");
-        $display("======================================");
-
-        // Reset
+        // 1. Reset
         repeat (2) @(posedge clk);
         @(negedge clk);
-        rst = 1'b0;
-        check_status();
+        rst = 0;
 
-        check_condition(rd_data == 0, "Read data reset to zero");
-        check_condition(overflow_flag == 0, "Overflow flag reset");
-        check_condition(underflow_flag == 0, "Underflow flag reset");
+        check_flags();
+        check(rd_data == 0, "Read data reset to zero");
+        check(overflow_flag == 0, "Overflow flag reset");
+        check(underflow_flag == 0, "Underflow flag reset");
 
-        // Test underflow on empty FIFO
+        // 2. Underflow
         @(negedge clk);
-        rd_en = 1'b1;
+        rd_en = 1;
         @(posedge clk);
         #1;
-        check_condition(underflow_flag == 1'b1,
-                        "Underflow detected on empty FIFO");
+        check(underflow_flag == 1, "Underflow on empty FIFO");
         @(negedge clk);
-        rd_en = 1'b0;
-        check_status();
+        rd_en = 0;
+        check_flags();
 
-        // Fill FIFO
+        // 3. Fill FIFO
         $display("\n--- Fill FIFO ---");
         for (i = 0; i < DEPTH; i = i + 1)
-            write_item(8'h10 + i);
+            write_item(8'h20 + i);
 
-        check_condition(full == 1'b1, "FIFO becomes full");
-        check_condition(fifo_count == DEPTH, "Count equals DEPTH");
+        check(full == 1, "FIFO reaches full state");
+        check(fifo_count == DEPTH, "Count equals DEPTH");
 
-        // Overflow attempt
+        // 4. Overflow
         @(negedge clk);
-        wr_en = 1'b1;
+        wr_en = 1;
         wr_data = 8'hEE;
         @(posedge clk);
         #1;
-        check_condition(overflow_flag == 1'b1,
-                        "Overflow detected when FIFO is full");
+        check(overflow_flag == 1, "Overflow on full FIFO");
         @(negedge clk);
-        wr_en = 1'b0;
-        wr_data = '0;
-        check_status();
+        wr_en = 0;
+        wr_data = 0;
+        check_flags();
 
-        // Drain FIFO and verify ordering
+        // 5. Read everything in FIFO order
         $display("\n--- Drain FIFO ---");
         for (i = 0; i < DEPTH; i = i + 1)
             read_item();
 
-        check_condition(empty == 1'b1, "FIFO becomes empty");
-        check_condition(fifo_count == 0, "Count returns to zero");
+        check(empty == 1, "FIFO becomes empty");
+        check(fifo_count == 0, "Count returns to zero");
 
-        // Simultaneous read/write while FIFO contains data
+        // 6. Almost-full and almost-empty thresholds
+        $display("\n--- Threshold checks ---");
+        for (i = 0; i < ALMOST_FULL_THRESHOLD; i = i + 1)
+            write_item(8'h50 + i);
+
+        check(almost_full == 1, "Almost-full threshold reached");
+
+        while (model_count > ALMOST_EMPTY_THRESHOLD)
+            read_item();
+
+        check(almost_empty == 1, "Almost-empty threshold reached");
+
+        while (model_count > 0)
+            read_item();
+
+        // 7. Simultaneous read/write while nonempty
         $display("\n--- Simultaneous read/write ---");
         write_item(8'hA1);
         write_item(8'hA2);
 
         @(negedge clk);
-        wr_en = 1'b1;
+        wr_en = 1;
         wr_data = 8'hA3;
-        rd_en = 1'b1;
+        rd_en = 1;
 
-        // Expected oldest item is A1
+        // The oldest entry should be read while A3 is written.
         @(posedge clk);
         #1;
-        check_condition(rd_data === 8'hA1,
-                        "Simultaneous operation returns oldest data");
+        check(rd_data === 8'hA1,
+              "Simultaneous read returns oldest entry");
 
-        model_read();
-        model_write(8'hA3);
+        head = (head + 1) % DEPTH;
+        model_count = model_count - 1;
+
+        expected_mem[tail] = 8'hA3;
+        tail = (tail + 1) % DEPTH;
+        model_count = model_count + 1;
 
         @(negedge clk);
-        wr_en = 1'b0;
-        rd_en = 1'b0;
-        check_status();
+        wr_en = 0;
+        rd_en = 0;
+        wr_data = 0;
+        check_flags();
 
         read_item();
         read_item();
 
-        // Pointer wraparound test
+        // 8. Pointer wraparound
         $display("\n--- Pointer wraparound ---");
         for (i = 0; i < DEPTH; i = i + 1)
-            write_item(i + 8'h40);
+            write_item(8'h60 + i);
 
         for (i = 0; i < DEPTH/2; i = i + 1)
             read_item();
 
         for (i = 0; i < DEPTH/2; i = i + 1)
-            write_item(i + 8'h80);
+            write_item(8'h90 + i);
 
         while (model_count > 0)
             read_item();
 
-        check_condition(empty == 1'b1,
-                        "FIFO empty after wraparound test");
-        check_condition(fifo_count == 0,
-                        "Count zero after wraparound test");
+        check(empty == 1, "Empty after pointer wraparound");
+        check(fifo_count == 0, "Count zero after wraparound");
 
-        // Final result
-        $display("\n======================================");
+        // 9. Summary
+        $display("\n==========================================");
         $display("PASS COUNT = %0d", pass_count);
         $display("FAIL COUNT = %0d", fail_count);
-        $display("======================================");
+        $display("==========================================");
 
         if (fail_count == 0)
             $display("ALL TESTS PASSED");
         else
-            $display("SOME TESTS FAILED");
+            $display("TEST FAILED: CHECK ERROR MESSAGES");
 
         $finish;
     end
 
-    // Timeout protection
+    // Timeout
     initial begin
         #200000;
-        $fatal(1, "TIMEOUT: Testbench did not finish");
+        $fatal(1, "TIMEOUT");
     end
 
 endmodule
